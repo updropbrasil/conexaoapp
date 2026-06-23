@@ -130,6 +130,7 @@
   <div class="tabs">
     <div class="tab active" onclick="painelTab('cot',this)">📨 Cotações</div>
     <div class="tab" onclick="painelTab('ped',this)">📦 Pedidos</div>
+    <div class="tab" onclick="painelTab('fin',this)">💰 Financeiro</div>
     <div class="tab" onclick="painelTab('cat',this)">🏭 Fornecedores</div>
     <div class="tab" onclick="painelTab('cli',this)">👥 Clientes</div>
     <div class="tab" onclick="painelTab('apar',this)">🎨 Aparência</div>
@@ -138,6 +139,17 @@
   <section id="t-ped" class="hidden">
     <div class="stats" id="pedStats"></div>
     <div class="tbl"><table><thead><tr><th>Pedido</th><th>Cliente / Fornecedor</th><th>Itens</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody id="pedBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div>
+  </section>
+  <section id="t-fin" class="hidden">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="finNav(-1)">◀</button>
+      <b id="finLabel" style="min-width:150px;text-align:center;font-size:14px;text-transform:capitalize"></b>
+      <button class="btn btn-ghost btn-sm" onclick="finNav(1)">▶</button>
+      <div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="imprimirRelatorio()">🖨 Relatório</button><button class="btn btn-wpp btn-sm" onclick="addRecebimento()">+ Recebimento</button></div>
+    </div>
+    <div class="stats" id="finStats"></div>
+    <div id="finCal"></div>
+    <div id="finDia" style="margin-top:14px"></div>
   </section>
   <section id="t-cat" class="hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
@@ -223,6 +235,7 @@
   <div class="bh"><h3 id="pmTitle">Produto</h3><button class="close" onclick="closeProdM()">✕</button></div>
   <div class="bb">
     <div class="err" id="pmErr"></div>
+    <div id="pmFoto"></div>
     <label>Nome do produto</label><input id="pmNome">
     <div class="row2"><div><label>Categoria</label><input id="pmCat" placeholder="Ex: Cama, Mesa e Banho"></div><div><label>Referência (SKU)</label><input id="pmRef"></div></div>
     <div class="row2"><div><label>Custo (R$)</label><input id="pmCusto" type="number" step="0.01" oninput="calcPreco()"></div><div><label>Pedido mín./múltiplo</label><input id="pmMin" type="number" min="1" value="1"></div></div>
@@ -247,6 +260,22 @@
     <div class="row2"><div><label>Contato</label><input id="caResp"></div><div><label>WhatsApp</label><input id="caTel"></div></div>
     <label>Endereço</label><input id="caEnd"><label>Cidade</label><input id="caCidade"></div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeCliAdmin()">Cancelar</button><button class="btn btn-wpp" onclick="salvarCliAdmin()">✓ Salvar</button></div>
+</div></div>
+
+<!-- MODAL RECEBIMENTO AVULSO -->
+<div id="recModal" class="modal hidden"><div class="box" style="width:440px">
+  <div class="bh"><h3>+ Recebimento</h3><button class="close" onclick="closeRec()">✕</button></div>
+  <div class="bb"><div class="err" id="recErr"></div>
+    <label>Cliente (opcional)</label>
+    <input id="recCli" list="clientesDL" oninput="recCliChange()" placeholder="Buscar cliente na base...">
+    <datalist id="clientesDL"></datalist>
+    <div id="recPedWrap" class="hidden"><label>Pedido do cliente (opcional)</label>
+      <select id="recPed" onchange="recPedChange()" style="width:100%;border:1px solid var(--borda);border-radius:9px;padding:11px;font-size:14px"></select></div>
+    <div class="row2"><div><label>Valor (R$)</label><input id="recValor" type="number" step="0.01"></div><div><label>Comissão (R$)</label><input id="recCom" type="number" step="0.01"></div></div>
+    <label>Data de vencimento</label><input id="recVenc" type="date">
+    <label>Observação (opcional)</label><input id="recDesc" placeholder="Ex: comissão avulsa, acerto...">
+  </div>
+  <div class="bf"><button class="btn btn-ghost" onclick="closeRec()">Cancelar</button><button class="btn btn-wpp" onclick="salvarRecebimento()">✓ Salvar</button></div>
 </div></div>
 
 <!-- MODAL IMPORTAR FOTOS EM LOTE -->
@@ -277,6 +306,9 @@
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeImport()">Cancelar</button><button class="btn btn-wpp" onclick="salvarImport()">✓ Importar</button></div>
 </div></div>
+
+<!-- LIGHTBOX FOTO -->
+<div id="imgModal" class="modal hidden" onclick="closeImg()" style="z-index:95"><img id="imgBig" src="" alt="" style="max-width:92vw;max-height:88vh;border-radius:12px;background:#fff;padding:8px"></div>
 
 <div id="printArea"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -320,9 +352,10 @@ function iniciar(){
 function irCatalogo(){$('viewCatalogo').classList.remove('hidden');$('viewPainel').classList.add('hidden');}
 
 /* ---------- CATÁLOGO ---------- */
-async function carregarCatalogo(){
+async function carregarCatalogo(admin){
+  const cols=admin?'*':'id,fornecedor_id,nome,ref,preco,img_url,min_mult,categoria';
   const r1=await sb.from('fornecedores').select('*').order('nome');
-  const r2=await sb.from('produtos').select('*, fornecedores(nome,logo), produto_variacoes(*), produto_fotos(*)').order('nome');
+  const r2=await sb.from('produtos').select(cols+', fornecedores(nome,logo), produto_variacoes(*), produto_fotos(*)').order('nome');
   if(r1.error||r2.error){$('grid').innerHTML='<div class="state">Erro: '+((r1.error||r2.error).message)+'</div>';return;}
   forns=r1.data||[]; prods=r2.data||[];
   renderChips(); renderCats(); renderGrid();
@@ -349,7 +382,7 @@ function renderGrid(){
   if(!list.length){$('grid').innerHTML='<div class="state">Nenhum produto encontrado.</div>';return;}
   $('grid').innerHTML=list.map(p=>{
     const fn=p.fornecedores?p.fornecedores.nome:'';
-    const foto=p.img_url?`<div class="card-img" style="background:#fff;padding:10px"><img src="${p.img_url}" style="width:100%;height:100%;object-fit:contain"></div>`:`<div class="card-img">${NOIMG}</div>`;
+    const foto=p.img_url?`<div class="card-img" style="background:#fff;padding:10px" onclick="openImg('${p.img_url}')"><img src="${p.img_url}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in"></div>`:`<div class="card-img">${NOIMG}</div>`;
     const pc=temVar(p)?`<div class="card-price" style="font-size:14px;color:var(--cinza);font-weight:600">a partir de <span style="color:var(--texto);font-size:17px;font-weight:800">${money(precoBase(p))}</span></div>`:`<div class="card-price">${money(p.preco)}</div>`;
     const rf=temVar(p)?`<div class="card-ref">${p.produto_variacoes.length} opções</div>`:`<div class="card-ref">Ref. ${p.ref||'—'}</div>`;
     const sel=temVar(p)?`<select class="sel" id="v${p.id}">${p.produto_variacoes.map(v=>`<option value="${v.id}">${v.nome} — ${money(v.preco)}</option>`).join('')}</select>`:'';
@@ -450,9 +483,9 @@ function entrarPainel(user){
   $('viewCatalogo').classList.add('hidden');$('viewPainel').classList.remove('hidden');
   $('navPub').classList.add('hidden');$('navPainel').classList.remove('hidden');$('painelLink').classList.add('hidden');
   $('quemSou').textContent=user.email;
-  carregarCotacoes();carregarPedidos();carregarClientes();
+  carregarCatalogo(true);carregarCotacoes();carregarPedidos();carregarClientes();
 }
-function painelTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');['cot','ped','cat','cli','apar'].forEach(s=>$('t-'+s).classList.toggle('hidden',s!==t));if(t==='ped')carregarPedidos();if(t==='cat')renderFornAdmin();if(t==='apar')renderApar();}
+function painelTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');['cot','ped','fin','cat','cli','apar'].forEach(s=>$('t-'+s).classList.toggle('hidden',s!==t));if(t==='ped')carregarPedidos();if(t==='fin')carregarFinanceiro();if(t==='cat')renderFornAdmin();if(t==='apar')renderApar();}
 
 /* ---------- APARÊNCIA ---------- */
 const TEMAS=[{nome:'Conexão',a:'#1b4f8a',e:'#12365f',a2:'#2e86c9'},{nome:'Verde',a:'#4f9d2f',e:'#37711f',a2:'#6cb33f'},{nome:'Azul vivo',a:'#1d6fc4',e:'#14559b',a2:'#3b9ae0'},{nome:'Grafite',a:'#374151',e:'#1f2937',a2:'#6b7280'},{nome:'Vinho',a:'#9b2c4d',e:'#7a1f3a',a2:'#c4476b'}];
@@ -499,7 +532,8 @@ function renderFornProds(){
   const its=prods.filter(p=>p.fornecedor_id===fornAtualId);
   $('fmBody').innerHTML=its.length?its.map(p=>{
     const v=temVar(p);const pr=v?'a partir de '+money(precoBase(p)):money(p.preco);
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--borda)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--borda)">
+      ${p.img_url?`<img src="${p.img_url}" onclick="openImg('${p.img_url}')" style="width:42px;height:42px;object-fit:contain;border:1px solid var(--borda);border-radius:8px;background:#fff;cursor:zoom-in;flex-shrink:0">`:`<div style="width:42px;height:42px;border:1px solid var(--borda);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${NOIMG}</div>`}
       <div style="flex:1;font-size:14px">${p.nome}<br><small style="color:var(--cinza)">${v?p.produto_variacoes.length+' variações':'SKU '+(p.ref||'—')} · ${pr}</small></div>
       <button class="btn btn-ghost btn-sm" onclick="openProd('${fornAtualId}','${p.id}')">✏️</button>
       <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delProd('${p.id}')">🗑</button></div>`;
@@ -512,8 +546,11 @@ function openProd(fid,pid){
   $('pmNome').value=p?p.nome:'';$('pmRef').value=p&&p.ref?p.ref:'';$('pmCat').value=p&&p.categoria?p.categoria:'';
   $('pmCusto').value=p&&p.custo!=null?p.custo:'';$('pmMargTipo').value=p&&p.margem_tipo?p.margem_tipo:'pct';$('pmMargVal').value=p&&p.margem_val!=null?p.margem_val:30;
   $('pmPreco').value=p&&p.preco!=null?p.preco:'';$('pmMin').value=p&&p.min_mult?p.min_mult:1;
+  $('pmFoto').innerHTML=(p&&p.img_url)?`<div style="text-align:center;margin-bottom:6px"><img src="${p.img_url}" onclick="openImg('${p.img_url}')" style="max-height:130px;max-width:100%;object-fit:contain;border:1px solid var(--borda);border-radius:10px;background:#fff;cursor:zoom-in"></div>`:'';
   renderVarBox(p);$('prodModal').classList.remove('hidden');
 }
+function openImg(url){$('imgBig').src=url;$('imgModal').classList.remove('hidden');}
+function closeImg(){$('imgModal').classList.add('hidden');}
 function calcPreco(){const custo=parseFloat($('pmCusto').value);if(isNaN(custo))return;const m=parseFloat($('pmMargVal').value)||0;const preco=$('pmMargTipo').value==='pct'?custo*(1+m/100):custo+m;$('pmPreco').value=(Math.round(preco*100)/100).toFixed(2);}
 function closeProdM(){$('prodModal').classList.add('hidden');}
 function renderVarBox(p){
@@ -689,13 +726,14 @@ async function gerarPedido(){
   const c=cotMap[cotAtual];const its=c.cotacao_itens||[];
   if(!its.length){alert('Cotação sem itens.');return;}
   const g={};its.forEach(i=>{const fn=i.fornecedor||'Sem fornecedor';(g[fn]=g[fn]||[]).push(i);});
+  const byRef={},byNome={};prods.forEach(p=>{if(p.ref)byRef[p.ref.toLowerCase()]=p;byNome[(p.nome||'').toLowerCase()]=p;});
   const {count}=await sb.from('pedidos').select('*',{count:'exact',head:true});
   let n=count||0;const nums=[];
   for(const fn of Object.keys(g)){
     n++;const pid=uuid();const numero='#'+(1000+n);nums.push(numero+' ('+fn+')');
     const e1=(await sb.from('pedidos').insert({id:pid,numero,cliente_nome:c.cliente_nome,fornecedor:fn,status:'aberto'})).error;
     if(e1){alert('Erro: '+e1.message);return;}
-    const itens=g[fn].map(i=>({pedido_id:pid,produto_nome:i.produto_nome,ref:i.ref,fornecedor:fn,qtd:i.qtd,preco:i.preco}));
+    const itens=g[fn].map(i=>{const pr=byRef[(i.ref||'').toLowerCase()]||byNome[(i.produto_nome||'').toLowerCase()];return {pedido_id:pid,produto_nome:i.produto_nome,ref:i.ref,fornecedor:fn,qtd:i.qtd,preco:i.preco,custo:pr&&pr.custo!=null?pr.custo:null};});
     const e2=(await sb.from('pedido_itens').insert(itens)).error;
     if(e2){alert('Erro: '+e2.message);return;}
   }
@@ -724,13 +762,196 @@ async function carregarPedidos(){
   $('pedStats').innerHTML=`<div class="stat"><b>${tot}</b><span>Pedidos</span></div><div class="stat"><b style="color:#b45309">${ab}</b><span>Em aberto</span></div><div class="stat"><b style="color:var(--verde)">${fat}</b><span>Faturados+</span></div><div class="stat"><b>${money(val)}</b><span>Valor total</span></div>`;
 }
 async function mudaStatusPedido(id,st){const {error}=await sb.from('pedidos').update({status:st}).eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarPedidos();}
-function verPedido(id){const p=pedMap[id];const its=p.pedido_itens||[];
+async function verPedido(id){
+  const p=pedMap[id];const its=p.pedido_itens||[];
+  const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
+  const com=its.reduce((a,i)=>a+(i.custo!=null?(i.preco-i.custo):0)*i.qtd,0);
   let h=`<p style="color:var(--cinza);font-size:14px">Fornecedor: ${p.fornecedor||'—'} · Status: ${(ST[p.status]||{}).t||p.status}</p>`;
   h+=its.map(i=>`<div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-bottom:1px solid var(--borda)"><span>${i.qtd}x ${i.produto_nome}</span><span>${money(i.qtd*i.preco)}</span></div>`).join('');
-  const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);h+=`<div style="text-align:right;font-weight:800;margin-top:10px">Total: ${money(tot)}</div>`;
+  h+=`<div style="text-align:right;font-weight:800;margin-top:10px">Total: ${money(tot)} · comissão ${money(com)}</div>`;
+  h+=`<label style="font-size:13px;font-weight:600;margin-top:12px;display:block">Transportadora</label>
+    <div style="display:flex;gap:6px"><input id="pTransp" value="${p.transportadora||''}" style="flex:1;border:1px solid var(--borda);border-radius:9px;padding:9px;font-size:14px"><button class="btn btn-ghost btn-sm" onclick="salvarFinPedido('${id}')">Salvar</button></div>`;
+  h+=`<div id="parcBox" style="border-top:1px solid var(--borda);margin-top:14px;padding-top:12px"></div>`;
   $('detTitle').textContent='Pedido '+(p.numero||'')+' · '+p.cliente_nome;$('detBody').innerHTML=h;
   $('detFoot').innerHTML=`<button class="btn btn-primary" onclick="imprimirPedido('${id}')">🖨 Imprimir</button><button class="btn btn-ghost" onclick="closeDet()">Fechar</button>`;
   $('detModal').classList.remove('hidden');
+  const {data:parc}=await sb.from('parcelas').select('*').eq('pedido_id',id).order('numero');
+  renderParcelas(id,parc||[],tot,com);
+}
+async function salvarFinPedido(id){
+  const transp=$('pTransp').value.trim()||null;
+  const {error}=await sb.from('pedidos').update({transportadora:transp}).eq('id',id);
+  if(error){alert('Erro: '+error.message);return;}
+  if(pedMap[id])pedMap[id].transportadora=transp;
+}
+function renderParcelas(id,parc,tot,com){
+  const box=$('parcBox');if(!box)return;
+  let h='<b style="font-size:14px">Parcelas / recebimentos</b>';
+  if(parc.length){
+    h+=parc.map(pc=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px">
+      <span style="flex:1">${pc.numero}/${pc.total} · ${pc.vencimento?pc.vencimento.split('-').reverse().join('/'):'sem data'}<br><small style="color:var(--verde)">comissão ${money(pc.comissao)}</small></span>
+      <b>${money(pc.valor)}</b>
+      <button class="btn btn-sm ${pc.recebido?'btn-ghost':'btn-wpp'}" onclick="toggleParcela('${id}','${pc.id}',${!pc.recebido})">${pc.recebido?'✓ pago':'Receber'}</button></div>`).join('');
+    h+=`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="refazerParcelas('${id}')">↺ Refazer parcelamento</button>`;
+  }else{
+    h+=`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:flex-end">
+      <div><label style="font-size:12px;display:block">Nº parcelas</label><input id="parN" type="number" min="1" value="1" style="width:70px;border:1px solid var(--borda);border-radius:8px;padding:8px"></div>
+      <div><label style="font-size:12px;display:block">1º vencimento</label><input id="parData" type="date" value="${ymd(new Date())}" style="border:1px solid var(--borda);border-radius:8px;padding:8px"></div>
+      <div><label style="font-size:12px;display:block">Intervalo (dias)</label><input id="parInt" type="number" value="30" style="width:80px;border:1px solid var(--borda);border-radius:8px;padding:8px"></div>
+      <button class="btn btn-primary btn-sm" onclick="gerarParcelas('${id}',${tot},${com})">Gerar</button></div>
+      <div style="font-size:12px;color:var(--cinza);margin-top:5px">O valor (${money(tot)}) e a comissão (${money(com)}) são divididos entre as parcelas. Cada parcela recebida solta sua comissão.</div>`;
+  }
+  box.innerHTML=h;
+}
+async function gerarParcelas(id,tot,com){
+  const n=parseInt($('parN').value)||1,d0=$('parData').value,intv=parseInt($('parInt').value)||30;
+  if(!d0){alert('Informe o 1º vencimento.');return;}
+  const base=new Date(d0+'T00:00:00');
+  const vP=Math.round((tot/n)*100)/100,cP=Math.round((com/n)*100)/100,rows=[];
+  for(let i=0;i<n;i++){
+    const venc=ymd(new Date(base.getFullYear(),base.getMonth(),base.getDate()+i*intv));
+    rows.push({pedido_id:id,numero:i+1,total:n,vencimento:venc,
+      valor:i===n-1?Math.round((tot-vP*(n-1))*100)/100:vP,
+      comissao:i===n-1?Math.round((com-cP*(n-1))*100)/100:cP});
+  }
+  const {error}=await sb.from('parcelas').insert(rows);
+  if(error){alert('Erro: '+error.message);return;}
+  const {data:parc}=await sb.from('parcelas').select('*').eq('pedido_id',id).order('numero');
+  renderParcelas(id,parc||[],tot,com);carregarFinanceiro();
+}
+async function refazerParcelas(id){
+  if(!confirm('Refazer as parcelas? As atuais serão apagadas.'))return;
+  await sb.from('parcelas').delete().eq('pedido_id',id);verPedido(id);carregarFinanceiro();
+}
+async function toggleParcela(pedidoId,parcelaId,val){
+  const {error}=await sb.from('parcelas').update({recebido:val,recebido_em:val?ymd(new Date()):null}).eq('id',parcelaId);
+  if(error){alert('Erro: '+error.message);return;}
+  const {data:parc}=await sb.from('parcelas').select('*').eq('pedido_id',pedidoId).order('numero');
+  const p=pedMap[pedidoId],its=p.pedido_itens||[];
+  const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0),com=its.reduce((a,i)=>a+(i.custo!=null?(i.preco-i.custo):0)*i.qtd,0);
+  renderParcelas(pedidoId,parc||[],tot,com);carregarFinanceiro();
+}
+
+/* ---------- FINANCEIRO (calendário) ---------- */
+let finRef=new Date(), finRecs=[];
+const ymd=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);};
+const pedVal=p=>(p.pedido_itens||[]).reduce((a,i)=>a+i.qtd*i.preco,0);
+const pedCom=p=>(p.pedido_itens||[]).reduce((a,i)=>a+(i.custo!=null?(i.preco-i.custo):0)*i.qtd,0);
+function finNav(dir){finRef=new Date(finRef.getFullYear(),finRef.getMonth()+dir,1);carregarFinanceiro();}
+function getRecebiveis(pedidos,lancs){
+  const arr=[];
+  pedidos.filter(p=>p.status!=='cancelado').forEach(p=>{
+    (p.parcelas||[]).forEach(pc=>arr.push({tipo:'parcela',id:pc.id,pedido_id:p.id,data:pc.vencimento,cliente:p.cliente_nome,numero:(p.numero||'')+' ('+pc.numero+'/'+pc.total+')',fornecedor:p.fornecedor,transportadora:p.transportadora,valor:Number(pc.valor),comissao:Number(pc.comissao),recebido:pc.recebido}));
+  });
+  lancs.forEach(l=>arr.push({tipo:'avulso',id:l.id,data:l.vencimento,cliente:l.cliente_nome,numero:l.pedido_numero,descricao:l.descricao,valor:Number(l.valor),comissao:Number(l.comissao),recebido:l.recebido}));
+  return arr;
+}
+async function carregarFinanceiro(){
+  const r1=await sb.from('pedidos').select('*, pedido_itens(*), parcelas(*)');
+  const r2=await sb.from('lancamentos').select('*');
+  finRecs=getRecebiveis(r1.data||[], r2.data||[]);
+  $('finLabel').textContent=finRef.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const y=finRef.getFullYear(),m=finRef.getMonth();
+  const mIni=ymd(new Date(y,m,1)),mFim=ymd(new Date(y,m+1,0));
+  const noMes=finRecs.filter(r=>r.data&&r.data>=mIni&&r.data<=mFim);
+  const aReceber=noMes.filter(r=>!r.recebido).reduce((a,r)=>a+r.valor,0);
+  const recebido=noMes.filter(r=>r.recebido).reduce((a,r)=>a+r.valor,0);
+  const comissao=noMes.reduce((a,r)=>a+r.comissao,0);
+  const hoje=new Date();const dow=(hoje.getDay()+6)%7;
+  const sIni=ymd(new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-dow)),sFim=ymd(new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-dow+6));
+  const semana=finRecs.filter(r=>r.data&&r.data>=sIni&&r.data<=sFim&&!r.recebido).reduce((a,r)=>a+r.valor,0);
+  $('finStats').innerHTML=`<div class="stat"><b style="color:#b45309">${money(aReceber)}</b><span>A receber no mês</span></div>
+    <div class="stat"><b style="color:var(--verde)">${money(recebido)}</b><span>Recebido no mês</span></div>
+    <div class="stat"><b>${money(comissao)}</b><span>Sua comissão no mês</span></div>
+    <div class="stat"><b>${money(semana)}</b><span>A receber esta semana</span></div>`;
+  renderCalendar();
+  $('finDia').innerHTML='<p style="color:var(--cinza);font-size:13px">Clique num dia do calendário para ver ou adicionar recebimentos.</p>';
+}
+function renderCalendar(){
+  const y=finRef.getFullYear(),m=finRef.getMonth();
+  const startDow=(new Date(y,m,1).getDay()+6)%7, dias=new Date(y,m+1,0).getDate();
+  const byDay={};finRecs.filter(r=>r.data).forEach(r=>{(byDay[r.data]=byDay[r.data]||[]).push(r);});
+  const wd=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  let cells=wd.map(w=>`<div style="text-align:center;font-size:11px;color:var(--cinza);font-weight:700;padding:3px 0">${w}</div>`).join('');
+  for(let i=0;i<startDow;i++)cells+='<div></div>';
+  const hojeS=ymd(new Date());
+  for(let dia=1;dia<=dias;dia++){
+    const ds=ymd(new Date(y,m,dia)),items=byDay[ds]||[];
+    const aR=items.filter(x=>!x.recebido).reduce((a,x)=>a+x.valor,0);
+    const rc=items.filter(x=>x.recebido).reduce((a,x)=>a+x.valor,0);
+    let b='';
+    if(aR>0)b+=`<div style="background:#fef3c7;color:#854d0e;border-radius:5px;font-size:11px;font-weight:700;margin-top:3px;padding:2px 3px;overflow:hidden">${money(aR).replace('R$ ','')}</div>`;
+    if(rc>0)b+=`<div style="background:#dcfce7;color:#166534;border-radius:5px;font-size:11px;font-weight:700;margin-top:3px;padding:2px 3px;overflow:hidden">${money(rc).replace('R$ ','')}</div>`;
+    cells+=`<div onclick="clicarDia('${ds}')" style="min-height:78px;border:1px solid ${ds===hojeS?'var(--azul)':'var(--borda)'};border-radius:8px;padding:5px;cursor:pointer;${items.length?'background:#fafcff':''}">
+      <div style="font-size:14px;font-weight:600;color:${ds===hojeS?'var(--azul)':'inherit'}">${dia}</div>${b}</div>`;
+  }
+  $('finCal').innerHTML=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells}</div>`;
+}
+function clicarDia(ds){
+  const items=finRecs.filter(r=>r.data===ds);const d=new Date(ds+'T00:00:00');
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b style="text-transform:capitalize">${d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})}</b><button class="btn btn-wpp btn-sm" onclick="addRecebimento('${ds}')">+ Recebimento neste dia</button></div>`;
+  h+=items.length?items.map(finRow).join(''):'<p style="color:var(--cinza);font-size:14px;margin-top:8px">Nada neste dia.</p>';
+  $('finDia').innerHTML=h;
+}
+function finRow(r){
+  const sub=r.tipo==='parcela'?(r.fornecedor||''):((r.numero?'Pedido '+r.numero+' · ':'')+(r.descricao||''));
+  return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--borda);border-left:5px solid ${r.recebido?'var(--verde)':'#f59e0b'};border-radius:10px;padding:12px;margin:8px 0">
+    <div style="flex:1"><b>${r.cliente||r.descricao||'—'}</b> <small style="color:var(--cinza)">${r.tipo==='parcela'?(r.numero||''):'avulso'}</small><br>
+      <small style="color:var(--cinza)">${sub}${r.transportadora?' · 🚚 '+r.transportadora:''}</small></div>
+    <div style="text-align:right"><b>${money(r.valor)}</b>${r.comissao?`<br><small style="color:var(--verde)">comissão ${money(r.comissao)}</small>`:''}</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+      ${r.tipo==='parcela'?`<button class="btn btn-sm btn-ghost" onclick="verPedido('${r.pedido_id}')">📄 Pedido</button>`:''}
+      <button class="btn btn-sm ${r.recebido?'btn-ghost':'btn-wpp'}" onclick="toggleRec('${r.tipo}','${r.id}',${!r.recebido})">${r.recebido?'Desmarcar':'✓ Recebido'}</button>
+      ${r.tipo==='avulso'?`<button class="btn btn-sm btn-danger" onclick="delLanc('${r.id}')">🗑</button>`:''}</div>
+  </div>`;
+}
+function imprimirRelatorio(){
+  const y=finRef.getFullYear(),m=finRef.getMonth();
+  const mIni=ymd(new Date(y,m,1)),mFim=ymd(new Date(y,m+1,0));
+  const recs=finRecs.filter(r=>r.data&&r.data>=mIni&&r.data<=mFim).sort((a,b)=>a.data<b.data?-1:1);
+  const cnpjDe=n=>{const c=(cliList||[]).find(x=>(x.nome||'').toLowerCase()===(n||'').toLowerCase());return c&&c.doc?c.doc:'—';};
+  const linhas=recs.map(r=>`<tr><td>${r.cliente||r.descricao||'—'}</td><td>${cnpjDe(r.cliente)}</td><td>${(r.data||'').split('-').reverse().join('/')}</td><td style="text-align:right">${money(r.valor)}</td><td style="text-align:right">${money(r.comissao)}</td><td>${r.recebido?'Recebido':'A receber'}</td></tr>`).join('');
+  const totV=recs.reduce((a,r)=>a+r.valor,0),totC=recs.reduce((a,r)=>a+r.comissao,0);
+  $('printArea').innerHTML=`<div class="inv"><h1>CONEXÃO · Relatório de recebimentos</h1><div class="sub" style="text-transform:capitalize">${finRef.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
+    <table><thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Vencimento</th><th style="text-align:right">Valor</th><th style="text-align:right">Comissão</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table>
+    <div class="tot">Total: ${money(totV)} · Comissão: ${money(totC)}</div></div>`;
+  window.print();
+}
+async function toggleRec(tipo,id,val){
+  const tbl=tipo==='avulso'?'lancamentos':'parcelas';
+  const {error}=await sb.from(tbl).update({recebido:val,recebido_em:val?ymd(new Date()):null}).eq('id',id);
+  if(error){alert('Erro: '+error.message);return;}
+  const ds=(finRecs.find(r=>r.id===id)||{}).data;
+  await carregarFinanceiro();if(ds)clicarDia(ds);
+}
+async function delLanc(id){if(!confirm('Excluir este recebimento?'))return;const {error}=await sb.from('lancamentos').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}const ds=(finRecs.find(r=>r.id===id)||{}).data;await carregarFinanceiro();if(ds)clicarDia(ds);}
+function addRecebimento(ds){
+  ['recDesc','recCli','recValor','recCom'].forEach(i=>$(i).value='');$('recErr').textContent='';$('recVenc').value=ds||ymd(new Date());
+  $('clientesDL').innerHTML=(cliList||[]).map(c=>`<option value="${c.nome}">`).join('');
+  $('recPedWrap').classList.add('hidden');$('recPed').innerHTML='';
+  $('recModal').classList.remove('hidden');
+}
+function closeRec(){$('recModal').classList.add('hidden');}
+function recCliChange(){
+  const nome=$('recCli').value.trim().toLowerCase();
+  const peds=Object.values(pedMap).filter(p=>(p.cliente_nome||'').toLowerCase()===nome);
+  if(peds.length){
+    $('recPed').innerHTML='<option value="">— sem pedido específico —</option>'+peds.map(p=>`<option value="${p.id}">${p.numero||''} · ${p.fornecedor||''} · ${money(pedVal(p))}</option>`).join('');
+    $('recPedWrap').classList.remove('hidden');
+  }else{$('recPedWrap').classList.add('hidden');$('recPed').innerHTML='';}
+}
+function recPedChange(){
+  const p=pedMap[$('recPed').value];if(!p)return;
+  $('recValor').value=pedVal(p).toFixed(2);$('recCom').value=pedCom(p).toFixed(2);
+  if(p.vencimento)$('recVenc').value=p.vencimento;
+}
+async function salvarRecebimento(){
+  const valor=parseFloat($('recValor').value);if(isNaN(valor)){$('recErr').textContent='Informe o valor.';return;}
+  let pedNum=null;const pid=$('recPedWrap').classList.contains('hidden')?'':$('recPed').value;
+  if(pid&&pedMap[pid])pedNum=pedMap[pid].numero;
+  const {error}=await sb.from('lancamentos').insert({descricao:$('recDesc').value.trim(),cliente_nome:$('recCli').value.trim(),pedido_numero:pedNum,valor,comissao:parseFloat($('recCom').value)||0,vencimento:$('recVenc').value||null});
+  if(error){$('recErr').textContent='Erro: '+error.message;return;}
+  const ds=$('recVenc').value;closeRec();await carregarFinanceiro();if(ds)clicarDia(ds);
 }
 function imprimirPedido(id){const p=pedMap[id];const its=p.pedido_itens||[];
   const linhas=its.map(i=>`<tr><td>${i.produto_nome}</td><td>${i.ref||'—'}</td><td style="text-align:center">${i.qtd}</td><td style="text-align:right">${money(i.preco)}</td><td style="text-align:right">${money(i.qtd*i.preco)}</td></tr>`).join('');
