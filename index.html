@@ -169,7 +169,8 @@
       <button class="btn btn-ghost btn-sm" onclick="pedNav(-1)">◀</button>
       <b id="pedLabel" style="min-width:140px;text-align:center;font-size:14px;text-transform:capitalize"></b>
       <button class="btn btn-ghost btn-sm" onclick="pedNav(1)">▶</button>
-      <label style="margin-left:auto;font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:5px"><input type="checkbox" id="pedTodos" onchange="renderPedidos()"> ver todos</label>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="novoPedido()">+ Novo pedido</button>
+      <label style="font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:5px"><input type="checkbox" id="pedTodos" onchange="renderPedidos()"> ver todos</label>
     </div>
     <div class="stats" id="pedStats"></div>
     <div class="tbl"><table><thead><tr><th>Pedido</th><th>Cliente / Fornecedor</th><th>Itens</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody id="pedBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div>
@@ -339,6 +340,26 @@
     <div id="impPreview" style="margin-top:8px;font-size:13px;color:var(--verde)"></div>
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeImport()">Cancelar</button><button class="btn btn-wpp" onclick="salvarImport()">✓ Importar</button></div>
+</div></div>
+
+<!-- MODAL NOVO PEDIDO -->
+<div id="novoPedModal" class="modal hidden"><div class="box" style="width:560px">
+  <div class="bh"><h3>Novo pedido</h3><button class="close" onclick="closeNovoPed()">✕</button></div>
+  <div class="bb">
+    <div class="err" id="npErr"></div>
+    <label>Cliente</label>
+    <input id="npCli" list="npCliDL" placeholder="Buscar cliente na base...">
+    <datalist id="npCliDL"></datalist>
+    <label style="margin-top:12px">Adicionar produtos</label>
+    <select id="npForn" onchange="npFiltrar()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px;margin-bottom:6px"><option value="">Todos os fornecedores</option></select>
+    <div style="display:flex;gap:6px">
+      <input id="npBusca" placeholder="🔍 Buscar por nome ou SKU…" oninput="npFiltrar()" style="flex:1;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
+      <input id="npQtd" type="number" value="1" min="1" style="width:58px;text-align:center;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
+    </div>
+    <div id="npResults" style="margin-top:6px;max-height:150px;overflow:auto"></div>
+    <div id="npLista" style="margin-top:12px;border-top:1px solid var(--borda);padding-top:10px"></div>
+  </div>
+  <div class="bf"><button class="btn btn-ghost" onclick="closeNovoPed()">Cancelar</button><button class="btn btn-wpp" onclick="criarNovoPed()">✓ Criar pedido</button></div>
 </div></div>
 
 <!-- LIGHTBOX FOTO -->
@@ -807,6 +828,56 @@ function renderPedidos(){
 }
 async function mudaStatusPedido(id,st){const {error}=await sb.from('pedidos').update({status:st}).eq('id',id);if(error){alert('Erro: '+error.message);return;}const p=pedMap[id];if(p)p.status=st;renderPedidos();}
 async function delPedido(id){const p=pedMap[id];if(!confirm('Excluir o pedido '+((p&&p.numero)||'')+'? As parcelas dele também serão apagadas.'))return;const {error}=await sb.from('pedidos').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarPedidos();if(typeof carregarFinanceiro==='function')carregarFinanceiro();}
+
+/* ---------- NOVO PEDIDO (manual) ---------- */
+let npItens=[];
+function novoPedido(){
+  npItens=[];$('npErr').textContent='';$('npCli').value='';$('npBusca').value='';$('npQtd').value='1';
+  $('npCliDL').innerHTML=(cliList||[]).map(c=>`<option value="${c.nome}">`).join('');
+  $('npForn').innerHTML='<option value="">Todos os fornecedores</option>'+forns.map(f=>`<option value="${f.id}">${f.logo||''} ${f.nome}</option>`).join('');
+  npFiltrar();renderNpLista();$('novoPedModal').classList.remove('hidden');
+}
+function closeNovoPed(){$('novoPedModal').classList.add('hidden');}
+function npFiltrar(){
+  const term=($('npBusca').value||'').toLowerCase().trim();const fid=$('npForn').value;
+  let opts=[];
+  prods.forEach(p=>{if(fid&&p.fornecedor_id!==fid)return;
+    if(temVar(p))p.produto_variacoes.forEach(v=>opts.push({key:p.id+'#'+v.id,nome:p.nome+' ('+v.nome+')',ref:v.ref,preco:v.preco}));
+    else opts.push({key:p.id,nome:p.nome,ref:p.ref,preco:p.preco});
+  });
+  if(term)opts=opts.filter(o=>o.nome.toLowerCase().includes(term)||(o.ref||'').toLowerCase().includes(term));
+  opts=opts.slice(0,10);
+  $('npResults').innerHTML=opts.length?opts.map(o=>`<div onclick="npAdd('${o.key}')" style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px"><span>${o.nome}<br><small style="color:var(--cinza)">SKU ${o.ref||'—'}</small></span><b style="white-space:nowrap">${money(o.preco)}</b></div>`).join(''):'<div style="color:var(--cinza);font-size:13px;padding:6px">Nada encontrado.</div>';
+}
+function npAdd(key){
+  const q=parseInt($('npQtd').value)||1;const i=keyInfo(key);
+  const ex=npItens.find(x=>x.key===key);
+  if(ex)ex.qtd+=q;else npItens.push({key,nome:i.nome,ref:i.ref,forn:i.p.fornecedores?i.p.fornecedores.nome:'',preco:i.preco,custo:i.p.custo!=null?i.p.custo:null,qtd:q});
+  renderNpLista();
+}
+function npDel(key){npItens=npItens.filter(x=>x.key!==key);renderNpLista();}
+function renderNpLista(){
+  const tot=npItens.reduce((a,i)=>a+i.preco*i.qtd,0);
+  $('npLista').innerHTML=npItens.length?npItens.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--borda);font-size:13px"><span style="flex:1">${i.qtd}x ${i.nome} <small style="color:var(--cinza)">(${i.forn})</small></span><b>${money(i.preco*i.qtd)}</b><button onclick="npDel('${i.key}')" style="border:none;background:none;color:#dc2626;cursor:pointer">🗑</button></div>`).join('')+`<div style="text-align:right;font-weight:800;margin-top:8px">Total: ${money(tot)}</div>`:'<div style="color:var(--cinza);font-size:13px">Nenhum item ainda. Busque e clique nos produtos acima.</div>';
+}
+async function criarNovoPed(){
+  const nome=$('npCli').value.trim();if(!nome){$('npErr').textContent='Escolha o cliente.';return;}
+  if(!npItens.length){$('npErr').textContent='Adicione pelo menos um produto.';return;}
+  const g={};npItens.forEach(i=>{const fn=i.forn||'Sem fornecedor';(g[fn]=g[fn]||[]).push(i);});
+  const {count}=await sb.from('pedidos').select('*',{count:'exact',head:true});
+  let n=count||0;const nums=[];
+  for(const fn of Object.keys(g)){
+    n++;const pid=uuid();const numero='#'+(1000+n);nums.push(numero);
+    const e1=(await sb.from('pedidos').insert({id:pid,numero,cliente_nome:nome,fornecedor:fn,status:'aberto'})).error;
+    if(e1){$('npErr').textContent='Erro: '+e1.message;return;}
+    const itens=g[fn].map(i=>({pedido_id:pid,produto_nome:i.nome,ref:i.ref,fornecedor:fn,qtd:i.qtd,preco:i.preco,custo:i.custo}));
+    const e2=(await sb.from('pedido_itens').insert(itens)).error;
+    if(e2){$('npErr').textContent='Erro: '+e2.message;return;}
+  }
+  await sb.from('clientes').update({ja_pediu:true}).eq('nome',nome);
+  closeNovoPed();carregarPedidos();carregarClientes();
+  alert('✓ '+nums.length+' pedido(s) criado(s): '+nums.join(', '));
+}
 async function verPedido(id){
   const p=pedMap[id];const its=p.pedido_itens||[];
   const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
