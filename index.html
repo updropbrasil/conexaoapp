@@ -98,6 +98,7 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzcnVnZGVzcnFnZ3lrb2h6em91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDc3MzgsImV4cCI6MjA5NzcyMzczOH0.HAHGIcpxv-Rbch4jE7ApFE-iOfRUeloPndJgoQiGyZU';
   const WHATSAPP_REP  = '5583981039267'; // WhatsApp do representante (pai do Vitor)
   const BANNER_URL    = ''; // cole aqui a URL/imagem do banner da home (deixe vazio pra esconder)
+  const VAPID_PUBLIC  = 'BPwZIsho5UTsrM7KihCdUmgtiYjvEiVUUDOcaYnNFac61SSpgk6jOs9XHy46NwLFktm6avKBaVPaKzDZy8rCQRI';
 </script>
 
 <div id="cfgWarn" class="cfg hidden">⚠️ Falta configurar o Supabase no topo do arquivo.</div>
@@ -111,6 +112,7 @@
   </div>
   <div class="nav-actions hidden" id="navPainel">
     <span id="quemSou" style="color:var(--cinza);font-size:14px"></span>
+    <button class="btn btn-ghost" onclick="ativarPush()" title="Receber avisos neste aparelho">🔔 Ativar avisos</button>
     <button class="btn btn-ghost" onclick="logout()">Sair</button>
   </div>
 </div></header>
@@ -1011,6 +1013,21 @@ async function delCliente(id){if(!confirm('Excluir este cliente?'))return;const 
 
 iniciar();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}
+
+function urlB64ToU8(s){const pad='='.repeat((4-s.length%4)%4);const b=(s+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(b);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+async function ativarPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){alert('Este navegador/dispositivo não suporta notificações. No iPhone, instale o app na tela inicial primeiro.');return;}
+  if(!sb){alert('Entre no painel primeiro.');return;}
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){alert('Permissão de notificação negada.');return;}
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToU8(VAPID_PUBLIC)});
+  const j=sub.toJSON();
+  const {error}=await sb.from('push_subs').upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+  if(error){alert('Erro ao salvar assinatura: '+error.message);return;}
+  alert('🔔 Avisos ativados neste aparelho!');
+}
 </script>
 </body>
 </html>

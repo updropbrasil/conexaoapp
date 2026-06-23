@@ -1,5 +1,5 @@
 // Service worker — Conexão (PWA)
-const CACHE = 'conexao-v1';
+const CACHE = 'conexao-v2';
 const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -25,4 +25,22 @@ self.addEventListener('fetch', e => {
   if (url.origin === self.location.origin) {
     e.respondWith(caches.match(req).then(r => r || fetch(req)));
   }
+});
+
+// ---------- WEB PUSH ----------
+self.addEventListener('push', e => {
+  let d = { title: 'Conexão', body: 'Você tem uma novidade', url: '/' };
+  try { d = Object.assign(d, e.data.json()); } catch (_) { if (e.data) d.body = e.data.text(); }
+  e.waitUntil(self.registration.showNotification(d.title, {
+    body: d.body, icon: '/icon-192.png', badge: '/icon-192.png', data: d.url || '/'
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = e.notification.data || '/';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => {
+    for (const w of ws) { if (w.url.includes(self.location.origin)) return w.focus(); }
+    return clients.openWindow(url);
+  }));
 });
