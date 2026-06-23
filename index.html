@@ -383,6 +383,8 @@
 
 <div id="printArea"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 const EMBLEM=`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
   <path d="M16 52 A34 34 0 0 1 84 52" fill="none" stroke="var(--azul2)" stroke-width="9" stroke-linecap="round"/>
@@ -855,7 +857,7 @@ function renderPedidos(){
     const s=ST[p.status]||ST.aberto;
     return `<tr><td data-label="Pedido"><b>${p.numero||'—'}</b></td><td data-label="Cliente">${p.cliente_nome}<br><small style="color:var(--azul)">🏭 ${p.fornecedor||''}</small></td><td data-label="Itens">${qt}</td><td data-label="Valor">${money(val)}</td>
       <td data-label="Status"><select onchange="mudaStatusPedido('${p.id}',this.value)" style="border:1px solid var(--borda);border-radius:8px;padding:6px;font-weight:700;color:${s.c};background:${s.bg}">${opts}</select></td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verPedido('${p.id}')">👁 Ver</button> <button class="btn btn-primary btn-sm" onclick="imprimirPedido('${p.id}')">🖨</button> <button class="btn btn-sm btn-danger" onclick="delPedido('${p.id}')">🗑</button></td></tr>`;
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verPedido('${p.id}')">👁 Ver</button> <button class="btn btn-primary btn-sm" onclick="imprimirPedido('${p.id}')">📄 PDF</button> <button class="btn btn-sm btn-danger" onclick="delPedido('${p.id}')">🗑</button></td></tr>`;
   }).join('');
   const tot=lista.length,ab=lista.filter(p=>p.status==='aberto').length,fat=lista.filter(p=>['faturado','enviado','entregue'].includes(p.status)).length;
   const fatur=lista.filter(p=>p.status!=='cancelado').reduce((a,p)=>a+(p.pedido_itens||[]).reduce((x,i)=>x+i.qtd*i.preco,0),0);
@@ -943,7 +945,7 @@ async function renderPedVer(){
     <div style="display:flex;gap:6px"><input id="pTransp" value="${p.transportadora||''}" style="flex:1;border:1px solid var(--borda);border-radius:9px;padding:9px;font-size:14px"><button class="btn btn-ghost btn-sm" onclick="salvarFinPedido('${id}')">Salvar</button></div>`;
   h+=`<div id="parcBox" style="border-top:1px solid var(--borda);margin-top:14px;padding-top:12px"></div>`;
   $('detTitle').textContent='Pedido '+(p.numero||'')+' · '+p.cliente_nome;$('detBody').innerHTML=h;
-  $('detFoot').innerHTML=`<button class="btn btn-primary" onclick="imprimirPedido('${id}')">🖨 Imprimir</button><button class="btn btn-ghost" onclick="closeDet()">Fechar</button>`;
+  $('detFoot').innerHTML=`<button class="btn btn-primary" onclick="imprimirPedido('${id}')">📄 Gerar PDF</button><button class="btn btn-ghost" onclick="closeDet()">Fechar</button>`;
   $('pedStepper').innerHTML=stepperHTML('pedQtd',1);pedFiltrar();
   const {data:parc}=await sb.from('parcelas').select('*').eq('pedido_id',id).order('numero');
   renderParcelas(id,parc||[],tot,com);
@@ -1147,18 +1149,38 @@ async function salvarRecebimento(){
   if(error){$('recErr').textContent='Erro: '+error.message;return;}
   const ds=$('recVenc').value;closeRec();await carregarFinanceiro();if(ds)clicarDia(ds);
 }
-function imprimirPedido(id){const p=pedMap[id];const its=p.pedido_itens||[];
+async function imprimirPedido(id){
+  const p=pedMap[id];const its=p.pedido_itens||[];
   const c=(cliList||[]).find(x=>(x.nome||'').toLowerCase()===(p.cliente_nome||'').toLowerCase())||{};
-  const linhas=its.map(i=>`<tr><td>${i.produto_nome}</td><td>${i.ref||'—'}</td><td style="text-align:center">${i.qtd}</td><td style="text-align:right">${money(i.preco)}</td><td style="text-align:right">${money(i.qtd*i.preco)}</td></tr>`).join('');
   const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
-  const linhaCli=[c.doc?'CPF/CNPJ: '+c.doc:'',c.ie?'IE: '+c.ie:''].filter(Boolean).join(' · ');
-  const contato=[c.tel?'Tel: '+c.tel:'',c.email?'E-mail: '+c.email:''].filter(Boolean).join(' · ');
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Carregando gerador de PDF, tente de novo em 2s.');return;}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'pt',format:'a4'});
+  doc.setFontSize(17);doc.setTextColor(18,54,95);doc.setFont(undefined,'bold');
+  doc.text('CONEXÃO · Indústria & Varejo',40,50);
+  doc.setFont(undefined,'normal');doc.setFontSize(10);doc.setTextColor(90,90,90);
+  doc.text(`Pedido ${p.numero||''}  ·  Fornecedor: ${p.fornecedor||'—'}  ·  ${new Date(p.criado_em||Date.now()).toLocaleDateString('pt-BR')}`,40,68);
+  doc.setTextColor(20,20,20);let y=92;doc.setFontSize(11);doc.setFont(undefined,'bold');
+  doc.text('Cliente: '+(p.cliente_nome||''),40,y);doc.setFont(undefined,'normal');doc.setFontSize(10);y+=15;
+  const linhaCli=[c.doc?'CPF/CNPJ: '+c.doc:'',c.ie?'IE: '+c.ie:''].filter(Boolean).join('   ·   ');
   const ender=[c.endereco,c.cidade].filter(Boolean).join(' - ');
-  $('printArea').innerHTML=`<div class="inv"><h1>CONEXÃO · Indústria &amp; Varejo</h1><div class="sub">Pedido ${p.numero||''} · Fornecedor: ${p.fornecedor||'—'} · ${new Date(p.criado_em||Date.now()).toLocaleDateString('pt-BR')}</div>
-    <div class="box2"><b>Cliente:</b> ${p.cliente_nome}${linhaCli?'<br>'+linhaCli:''}${ender?'<br>'+ender:''}${contato?'<br>'+contato:''}</div>
-    <table><thead><tr><th>Produto</th><th>Ref.</th><th style="text-align:center">Qtd</th><th style="text-align:right">Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${linhas}</tbody></table>
-    <div class="tot">Total: ${money(tot)}</div></div>`;
-  window.print();
+  const contato=[c.tel?'Tel: '+c.tel:'',c.email?'E-mail: '+c.email:''].filter(Boolean).join('   ·   ');
+  [linhaCli,ender,contato].forEach(l=>{if(l){doc.text(l,40,y);y+=14;}});
+  doc.autoTable({startY:y+8,head:[['Produto','Ref.','Qtd','Unit.','Subtotal']],
+    body:its.map(i=>[i.produto_nome,i.ref||'—',String(i.qtd),money(i.preco),money(i.qtd*i.preco)]),
+    styles:{fontSize:10,cellPadding:5},headStyles:{fillColor:[27,79,138]},
+    columnStyles:{2:{halign:'center'},3:{halign:'right'},4:{halign:'right'}}});
+  const endY=(doc.lastAutoTable&&doc.lastAutoTable.finalY)||y+40;
+  doc.setFontSize(13);doc.setFont(undefined,'bold');doc.text('Total: '+money(tot),555,endY+24,{align:'right'});
+  const nomeArq=`Pedido-${(p.numero||'').replace('#','')}-${(p.cliente_nome||'cliente').replace(/[^\w]+/g,'_')}.pdf`;
+  const blob=doc.output('blob');
+  try{
+    const file=new File([blob],nomeArq,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Pedido '+(p.numero||''),text:'Pedido '+(p.numero||'')+' — '+(p.cliente_nome||'')});
+      return;
+    }
+  }catch(e){}
+  doc.save(nomeArq);
 }
 async function reloadCot(){
   const {data}=await sb.from('cotacoes').select('*, cotacao_itens(*)').eq('id',cotAtual).single();
