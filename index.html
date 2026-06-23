@@ -363,17 +363,22 @@
   <div class="bh"><h3>Novo pedido</h3><button class="close" onclick="closeNovoPed()">✕</button></div>
   <div class="bb">
     <div class="err" id="npErr"></div>
-    <label>Cliente</label>
-    <input id="npCli" list="npCliDL" placeholder="Buscar cliente na base...">
-    <datalist id="npCliDL"></datalist>
-    <label style="margin-top:12px">Adicionar produtos</label>
-    <select id="npForn" onchange="npFiltrar()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px;margin-bottom:6px"><option value="">Todos os fornecedores</option></select>
-    <div style="display:flex;gap:6px;align-items:stretch">
-      <input id="npBusca" placeholder="🔍 Buscar por nome ou SKU…" oninput="npFiltrar()" style="flex:1;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
-      <div id="npStepper"></div>
+    <div style="background:#f8fafc;border:1px solid var(--borda);border-radius:12px;padding:12px;margin-bottom:14px">
+      <label style="margin-top:0">👤 Cliente</label>
+      <input id="npCli" oninput="npCliFiltrar()" autocomplete="off" placeholder="Digite o nome do cliente...">
+      <div id="npCliResults"></div>
     </div>
-    <div id="npResults" style="margin-top:6px;max-height:150px;overflow:auto"></div>
-    <div id="npLista" style="margin-top:12px;border-top:1px solid var(--borda);padding-top:10px"></div>
+    <div style="background:#f8fafc;border:1px solid var(--borda);border-radius:12px;padding:12px;margin-bottom:14px">
+      <label style="margin-top:0">📦 Adicionar produtos</label>
+      <select id="npForn" onchange="npFiltrar()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:10px;font-size:14px;margin-bottom:6px"><option value="">Todos os fornecedores</option></select>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input id="npBusca" placeholder="🔍 Buscar por nome ou SKU…" oninput="npFiltrar()" style="flex:1;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:10px;font-size:14px">
+        <div id="npStepper"></div>
+      </div>
+      <div id="npResults" style="margin-top:6px;max-height:160px;overflow:auto"></div>
+    </div>
+    <label style="margin-top:0;font-weight:700">🧾 Itens do pedido</label>
+    <div id="npLista" style="margin-top:6px"></div>
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeNovoPed()">Cancelar</button><button class="btn btn-wpp" onclick="criarNovoPed()">✓ Criar pedido</button></div>
 </div></div>
@@ -869,11 +874,21 @@ async function delPedido(id){const p=pedMap[id];if(!confirm('Excluir o pedido '+
 /* ---------- NOVO PEDIDO (manual) ---------- */
 let npItens=[];
 function novoPedido(){
-  npItens=[];$('npErr').textContent='';$('npCli').value='';$('npBusca').value='';$('npStepper').innerHTML=stepperHTML('npQtd',1);
-  $('npCliDL').innerHTML=(cliList||[]).map(c=>`<option value="${c.nome}">`).join('');
+  npItens=[];$('npErr').textContent='';$('npCli').value='';$('npBusca').value='';$('npCliResults').innerHTML='';$('npStepper').innerHTML=stepperHTML('npQtd',1);
   $('npForn').innerHTML='<option value="">Todos os fornecedores</option>'+forns.map(f=>`<option value="${f.id}">${f.logo||''} ${f.nome}</option>`).join('');
   npFiltrar();renderNpLista();$('novoPedModal').classList.remove('hidden');
 }
+let npCliMatches=[];
+function npCliFiltrar(){
+  const term=($('npCli').value||'').toLowerCase().trim();
+  if(!term){$('npCliResults').innerHTML='';return;}
+  npCliMatches=(cliList||[]).filter(c=>(c.nome||'').toLowerCase().includes(term)).slice(0,8);
+  if(npCliMatches.length===1&&(npCliMatches[0].nome||'').toLowerCase()===term){$('npCliResults').innerHTML='';return;}
+  $('npCliResults').innerHTML=npCliMatches.length
+    ? npCliMatches.map((c,idx)=>`<div onclick="npCliPick(${idx})" style="padding:9px 10px;background:#fff;border:1px solid var(--borda);border-radius:8px;margin-top:5px;cursor:pointer;font-size:13px"><b>${c.nome}</b>${c.cidade?` <small style="color:var(--cinza)">· ${c.cidade}</small>`:''}</div>`).join('')
+    : '<div style="color:var(--cinza);font-size:12px;padding:6px 2px">Nenhum cliente com esse nome. Você pode digitar mesmo assim.</div>';
+}
+function npCliPick(idx){const c=npCliMatches[idx];if(!c)return;$('npCli').value=c.nome;$('npCliResults').innerHTML='';}
 function closeNovoPed(){$('novoPedModal').classList.add('hidden');}
 function npFiltrar(){
   const term=($('npBusca').value||'').toLowerCase().trim();const fid=$('npForn').value;
