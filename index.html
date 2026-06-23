@@ -14,6 +14,7 @@
 <style>
   :root{--azul:#1b4f8a;--azul-esc:#12365f;--azul2:#2e86c9;--verde:#57a23a;--cinza:#64748b;--cinza-cl:#f1f5f9;--borda:#e2e8f0;--texto:#0f172a;--amarelo:#f59e0b}
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+  html,body{max-width:100%;overflow-x:hidden}
   body{background:#f8fafc;color:var(--texto);line-height:1.5}
   .hidden{display:none!important}
   header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--borda)}
@@ -92,9 +93,14 @@
   /* ===== PAINEL NO CELULAR ===== */
   @media(max-width:640px){
     .wrap{padding:14px 12px}
-    .nav{padding:10px 12px;gap:8px}.nav-actions{gap:6px}
+    .nav{padding:10px 12px;gap:8px;flex-wrap:wrap;row-gap:8px}
+    .nav-actions{gap:6px;flex:1 1 100%;justify-content:flex-start}
+    #quemSou{display:none}
+    .emblem{width:38px;height:38px}.logo-txt b{font-size:17px}
+    .hero{padding:30px 16px}.hero p{font-size:14px}
     .btn{padding:9px 12px;font-size:13px}.btn-sm{padding:6px 9px;font-size:12px}
     .tabs{gap:4px}.tab{padding:10px 12px;font-size:13px}
+    section h2{font-size:17px!important}
     .stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:14px}.stat b{font-size:20px}
     /* tabelas viram cartões */
     .tbl{overflow:visible;border:none;background:transparent}
@@ -107,6 +113,9 @@
     .tbl tbody td:last-child::before,.tbl tbody td:not([data-label])::before{content:''}
     .tbl tbody td select{flex:1;max-width:60%}
     .det-table th,.det-table td{padding:7px 6px;font-size:12px}
+    .actrow{width:100%}.actrow .btn{flex:1 1 44%;justify-content:center}
+    .box{width:100%!important}.modal{padding:14px 8px}
+    #finCal>div{gap:3px}
   }
 </style>
 </head>
@@ -165,12 +174,14 @@
   </div>
   <section id="t-cot"><div class="tbl"><table><thead><tr><th>Cliente</th><th>Contato</th><th>Itens</th><th>Valor</th><th>Quando</th><th></th></tr></thead><tbody id="cotBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div></section>
   <section id="t-ped" class="hidden">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
       <button class="btn btn-ghost btn-sm" onclick="pedNav(-1)">◀</button>
-      <b id="pedLabel" style="min-width:140px;text-align:center;font-size:14px;text-transform:capitalize"></b>
+      <b id="pedLabel" style="flex:1;text-align:center;font-size:14px;text-transform:capitalize"></b>
       <button class="btn btn-ghost btn-sm" onclick="pedNav(1)">▶</button>
-      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="novoPedido()">+ Novo pedido</button>
-      <label style="font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:5px"><input type="checkbox" id="pedTodos" onchange="renderPedidos()"> ver todos</label>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="flex:1 1 auto" onclick="novoPedido()">+ Novo pedido</button>
+      <label style="font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:5px;white-space:nowrap"><input type="checkbox" id="pedTodos" onchange="renderPedidos()"> ver todos</label>
     </div>
     <div class="stats" id="pedStats"></div>
     <div class="tbl"><table><thead><tr><th>Pedido</th><th>Cliente / Fornecedor</th><th>Itens</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody id="pedBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div>
@@ -189,7 +200,7 @@
   <section id="t-cat" class="hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div><h2 style="font-size:18px;margin:0">Fornecedores e produtos</h2><span style="color:var(--cinza);font-size:13px">Cadastre marcas e produtos sem mexer em SQL.</span></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="openFotos()">🖼️ Importar fotos</button><button class="btn btn-ghost" onclick="openImport()">⬆️ Importar lista</button>
+      <div class="actrow" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="openFotos()">🖼️ Importar fotos</button><button class="btn btn-ghost" onclick="openImport()">⬆️ Importar lista</button>
       <button class="btn btn-primary" onclick="novoFornecedor()">+ Adicionar fornecedor</button></div>
     </div>
     <div id="fornAdminList"></div>
@@ -224,6 +235,7 @@
     <label>Nome da loja / empresa</label><input id="cadNome">
     <div class="row2"><div><label>CPF / CNPJ</label><input id="cadDoc"></div><div><label>Inscrição Estadual</label><input id="cadIE"></div></div>
     <div class="row2"><div><label>Seu nome</label><input id="cadResp"></div><div><label>WhatsApp</label><input id="cadTel"></div></div>
+    <label>E-mail</label><input id="cadEmail" type="email">
     <label>Endereço</label><input id="cadEnd"><label>Cidade</label><input id="cadCidade">
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeCadastro()">Cancelar</button><button class="btn btn-primary" onclick="salvarCadastro()">Finalizar cadastro</button></div>
@@ -271,6 +283,9 @@
   <div class="bb">
     <div class="err" id="pmErr"></div>
     <div id="pmFoto"></div>
+    <label>Foto do produto</label>
+    <input type="file" id="pmFotoFile" accept="image/*" onchange="enviarFotoProduto(this)" style="font-size:13px;width:100%">
+    <div id="pmFotoMsg" style="font-size:12px;color:var(--cinza);margin:3px 0 4px">Envie o arquivo direto do computador/celular. Se o produto for novo, salve antes.</div>
     <label>Nome do produto</label><input id="pmNome">
     <div class="row2"><div><label>Categoria</label><input id="pmCat" placeholder="Ex: Cama, Mesa e Banho"></div><div><label>Referência (SKU)</label><input id="pmRef"></div></div>
     <div class="row2"><div><label>Custo (R$)</label><input id="pmCusto" type="number" step="0.01" oninput="calcPreco()"></div><div><label>Pedido mín./múltiplo</label><input id="pmMin" type="number" min="1" value="1"></div></div>
@@ -293,6 +308,7 @@
     <label>Nome da loja / empresa</label><input id="caNome">
     <div class="row2"><div><label>CPF / CNPJ</label><input id="caDoc"></div><div><label>Inscrição Estadual</label><input id="caIE"></div></div>
     <div class="row2"><div><label>Contato</label><input id="caResp"></div><div><label>WhatsApp</label><input id="caTel"></div></div>
+    <label>E-mail</label><input id="caEmail" type="email">
     <label>Endereço</label><input id="caEnd"><label>Cidade</label><input id="caCidade"></div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeCliAdmin()">Cancelar</button><button class="btn btn-wpp" onclick="salvarCliAdmin()">✓ Salvar</button></div>
 </div></div>
@@ -352,9 +368,9 @@
     <datalist id="npCliDL"></datalist>
     <label style="margin-top:12px">Adicionar produtos</label>
     <select id="npForn" onchange="npFiltrar()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px;margin-bottom:6px"><option value="">Todos os fornecedores</option></select>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:6px;align-items:stretch">
       <input id="npBusca" placeholder="🔍 Buscar por nome ou SKU…" oninput="npFiltrar()" style="flex:1;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
-      <input id="npQtd" type="number" value="1" min="1" style="width:58px;text-align:center;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
+      <div id="npStepper"></div>
     </div>
     <div id="npResults" style="margin-top:6px;max-height:150px;overflow:auto"></div>
     <div id="npLista" style="margin-top:12px;border-top:1px solid var(--borda);padding-top:10px"></div>
@@ -376,6 +392,8 @@ const EMBLEM=`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" widt
 </svg>`;
 ['hdrLogo','loginLogo'].forEach(i=>document.getElementById(i).innerHTML=EMBLEM);
 const $=id=>document.getElementById(id);
+function stepQty(id,d){const el=$(id);if(!el)return;el.value=Math.max(1,(parseInt(el.value)||1)+d);}
+const stepperHTML=(id,val)=>`<div style="display:flex;align-items:center;border:1px solid var(--borda);border-radius:8px;overflow:hidden;flex-shrink:0"><button type="button" onclick="stepQty('${id}',-1)" style="border:none;background:#f1f5f9;width:36px;height:40px;font-size:18px;cursor:pointer">−</button><input id="${id}" type="number" value="${val||1}" min="1" style="width:44px;text-align:center;border:none;font-size:15px;padding:9px 0"><button type="button" onclick="stepQty('${id}',1)" style="border:none;background:#f1f5f9;width:36px;height:40px;font-size:18px;cursor:pointer">+</button></div>`;
 const money=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const NOIMG='<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
 let bannerUrl=BANNER_URL;
@@ -509,7 +527,7 @@ async function enviarCotacao(){
 }
 
 /* ---------- CADASTRO ---------- */
-function openCadastro(){['cadNome','cadDoc','cadIE','cadResp','cadTel','cadEnd','cadCidade'].forEach(i=>$(i).value='');$('cadErr').textContent='';$('cadModal').classList.remove('hidden');}
+function openCadastro(){['cadNome','cadDoc','cadIE','cadResp','cadTel','cadEmail','cadEnd','cadCidade'].forEach(i=>$(i).value='');$('cadErr').textContent='';$('cadModal').classList.remove('hidden');}
 function closeCadastro(){$('cadModal').classList.add('hidden');}
 async function salvarCadastro(){
   const nome=$('cadNome').value.trim(), tel=$('cadTel').value.trim(), doc=$('cadDoc').value.trim();
@@ -519,7 +537,7 @@ async function salvarCadastro(){
   if(!okNome){$('cadErr').textContent='Informe o nome da loja/empresa.';return;}
   if(!okTel){$('cadErr').textContent='WhatsApp inválido. Use DDD + número (10 ou 11 dígitos).';return;}
   if(!okDoc){$('cadErr').textContent='CPF/CNPJ inválido. CPF tem 11 dígitos e CNPJ 14.';return;}
-  const {error}=await sb.from('clientes').insert({nome,doc,ie:$('cadIE').value.trim(),responsavel:$('cadResp').value.trim(),tel,endereco:$('cadEnd').value.trim(),cidade:$('cadCidade').value.trim()});
+  const {error}=await sb.from('clientes').insert({nome,doc,ie:$('cadIE').value.trim(),responsavel:$('cadResp').value.trim(),tel,email:$('cadEmail').value.trim(),endereco:$('cadEnd').value.trim(),cidade:$('cadCidade').value.trim()});
   if(error){$('cadErr').textContent='Erro: '+error.message;return;}
   closeCadastro();alert('✓ Cadastro realizado! Em breve nosso representante entra em contato.');
 }
@@ -602,7 +620,24 @@ function openProd(fid,pid){
   $('pmCusto').value=p&&p.custo!=null?p.custo:'';$('pmMargTipo').value=p&&p.margem_tipo?p.margem_tipo:'pct';$('pmMargVal').value=p&&p.margem_val!=null?p.margem_val:30;
   $('pmPreco').value=p&&p.preco!=null?p.preco:'';$('pmMin').value=p&&p.min_mult?p.min_mult:1;
   $('pmFoto').innerHTML=(p&&p.img_url)?`<div style="text-align:center;margin-bottom:6px"><img src="${p.img_url}" onclick="openImg('${p.img_url}')" style="max-height:130px;max-width:100%;object-fit:contain;border:1px solid var(--borda);border-radius:10px;background:#fff;cursor:zoom-in"></div>`:'';
+  $('pmFotoFile').value='';$('pmFotoMsg').textContent=prodEditId?'Envie o arquivo direto do computador/celular.':'Salve o produto antes de enviar a foto.';
   renderVarBox(p);$('prodModal').classList.remove('hidden');
+}
+async function enviarFotoProduto(input){
+  if(!prodEditId){alert('Salve o produto primeiro, depois envie a foto.');input.value='';return;}
+  const f=input.files&&input.files[0];if(!f)return;
+  $('pmFotoMsg').textContent='Enviando foto…';
+  const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+  const path=prodEditId+'.'+ext;
+  const up=await sb.storage.from('produtos').upload(path,f,{upsert:true,contentType:f.type||'image/jpeg'});
+  if(up.error){$('pmFotoMsg').textContent='Erro: '+up.error.message;return;}
+  const url=sb.storage.from('produtos').getPublicUrl(path).data.publicUrl+'?v='+Date.now();
+  const u=await sb.from('produtos').update({img_url:url}).eq('id',prodEditId);
+  if(u.error){$('pmFotoMsg').textContent='Erro: '+u.error.message;return;}
+  await carregarCatalogo(true);
+  $('pmFoto').innerHTML=`<div style="text-align:center;margin-bottom:6px"><img src="${url}" onclick="openImg('${url}')" style="max-height:130px;max-width:100%;object-fit:contain;border:1px solid var(--borda);border-radius:10px;background:#fff;cursor:zoom-in"></div>`;
+  $('pmFotoMsg').textContent='✓ Foto enviada!';
+  renderFornProds();renderFornAdmin();
 }
 function openImg(url){$('imgBig').src=url;$('imgModal').classList.remove('hidden');}
 function closeImg(){$('imgModal').classList.add('hidden');}
@@ -743,9 +778,9 @@ function renderCotModal(){
     <label style="font-size:13px;font-weight:600">Adicionar produto</label>
     <select id="addForn" onchange="filtrarAdd()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px;margin-top:6px">
       <option value="">Todos os fornecedores</option>${forns.map(f=>`<option value="${f.id}">${f.logo||''} ${f.nome}</option>`).join('')}</select>
-    <div style="display:flex;gap:6px;margin-top:6px">
+    <div style="display:flex;gap:6px;margin-top:6px;align-items:stretch">
       <input id="addBusca" placeholder="🔍 Buscar por nome ou código (SKU)…" oninput="filtrarAdd()" style="flex:1 1 auto;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
-      <input id="addQtd" type="number" value="1" min="1" title="Quantidade" style="flex:0 0 58px;width:58px;text-align:center;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px">
+      ${stepperHTML('addQtd',1)}
     </div>
     <div id="addResults" style="margin-top:7px;max-height:170px;overflow:auto"></div></div>`;
   $('detBody').innerHTML=h;
@@ -832,7 +867,7 @@ async function delPedido(id){const p=pedMap[id];if(!confirm('Excluir o pedido '+
 /* ---------- NOVO PEDIDO (manual) ---------- */
 let npItens=[];
 function novoPedido(){
-  npItens=[];$('npErr').textContent='';$('npCli').value='';$('npBusca').value='';$('npQtd').value='1';
+  npItens=[];$('npErr').textContent='';$('npCli').value='';$('npBusca').value='';$('npStepper').innerHTML=stepperHTML('npQtd',1);
   $('npCliDL').innerHTML=(cliList||[]).map(c=>`<option value="${c.nome}">`).join('');
   $('npForn').innerHTML='<option value="">Todos os fornecedores</option>'+forns.map(f=>`<option value="${f.id}">${f.logo||''} ${f.nome}</option>`).join('');
   npFiltrar();renderNpLista();$('novoPedModal').classList.remove('hidden');
@@ -856,9 +891,14 @@ function npAdd(key){
   renderNpLista();
 }
 function npDel(key){npItens=npItens.filter(x=>x.key!==key);renderNpLista();}
+function npItemQty(key,d){const i=npItens.find(x=>x.key===key);if(!i)return;i.qtd=Math.max(1,i.qtd+d);renderNpLista();}
 function renderNpLista(){
   const tot=npItens.reduce((a,i)=>a+i.preco*i.qtd,0);
-  $('npLista').innerHTML=npItens.length?npItens.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--borda);font-size:13px"><span style="flex:1">${i.qtd}x ${i.nome} <small style="color:var(--cinza)">(${i.forn})</small></span><b>${money(i.preco*i.qtd)}</b><button onclick="npDel('${i.key}')" style="border:none;background:none;color:#dc2626;cursor:pointer">🗑</button></div>`).join('')+`<div style="text-align:right;font-weight:800;margin-top:8px">Total: ${money(tot)}</div>`:'<div style="color:var(--cinza);font-size:13px">Nenhum item ainda. Busque e clique nos produtos acima.</div>';
+  $('npLista').innerHTML=npItens.length?npItens.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px">
+    <span style="flex:1">${i.nome} <small style="color:var(--cinza)">(${i.forn})</small></span>
+    <button class="qbtn" onclick="npItemQty('${i.key}',-1)">−</button><span style="min-width:20px;text-align:center">${i.qtd}</span><button class="qbtn" onclick="npItemQty('${i.key}',1)">+</button>
+    <b style="min-width:64px;text-align:right">${money(i.preco*i.qtd)}</b>
+    <button onclick="npDel('${i.key}')" style="border:none;background:none;color:#dc2626;cursor:pointer">🗑</button></div>`).join('')+`<div style="text-align:right;font-weight:800;margin-top:8px">Total: ${money(tot)}</div>`:'<div style="color:var(--cinza);font-size:13px">Nenhum item ainda. Busque e clique nos produtos acima.</div>';
 }
 async function criarNovoPed(){
   const nome=$('npCli').value.trim();if(!nome){$('npErr').textContent='Escolha o cliente.';return;}
@@ -878,21 +918,59 @@ async function criarNovoPed(){
   closeNovoPed();carregarPedidos();carregarClientes();
   alert('✓ '+nums.length+' pedido(s) criado(s): '+nums.join(', '));
 }
-async function verPedido(id){
-  const p=pedMap[id];const its=p.pedido_itens||[];
+let pedVerId=null;
+async function verPedido(id){pedVerId=id;await renderPedVer();$('detModal').classList.remove('hidden');}
+async function renderPedVer(){
+  const id=pedVerId;
+  const {data:p}=await sb.from('pedidos').select('*, pedido_itens(*)').eq('id',id).single();
+  if(p)pedMap[id]=p; if(!p)return;
+  const its=(p.pedido_itens||[]).slice().sort((a,b)=>((a.produto_nome||'')>(b.produto_nome||'')?1:-1));
   const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
   const com=its.reduce((a,i)=>a+(i.custo!=null?(i.preco-i.custo):0)*i.qtd,0);
   let h=`<p style="color:var(--cinza);font-size:14px">Fornecedor: ${p.fornecedor||'—'} · Status: ${(ST[p.status]||{}).t||p.status}</p>`;
-  h+=its.map(i=>`<div style="display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-bottom:1px solid var(--borda)"><span>${i.qtd}x ${i.produto_nome}</span><span>${money(i.qtd*i.preco)}</span></div>`).join('');
-  h+=`<div style="text-align:right;font-weight:800;margin-top:10px">Total: ${money(tot)} · comissão ${money(com)}</div>`;
+  h+=its.length?its.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px">
+    <span style="flex:1">${i.produto_nome}<br><small style="color:var(--cinza)">${money(i.preco)} un.</small></span>
+    <button class="qbtn" onclick="pedItemQty('${i.id}',${i.qtd-1})">−</button><span style="min-width:20px;text-align:center">${i.qtd}</span><button class="qbtn" onclick="pedItemQty('${i.id}',${i.qtd+1})">+</button>
+    <b style="min-width:68px;text-align:right">${money(i.qtd*i.preco)}</b>
+    <button onclick="pedDelItem('${i.id}')" style="border:none;background:none;color:#dc2626;cursor:pointer">🗑</button></div>`).join(''):'<p style="color:var(--cinza);font-size:13px">Sem itens.</p>';
+  h+=`<div style="text-align:right;font-weight:800;margin:8px 0">Total: ${money(tot)} · <span style="color:var(--verde)">comissão ${money(com)}</span></div>`;
+  h+=`<div style="border-top:1px solid var(--borda);padding-top:10px;margin-top:4px">
+    <label style="font-size:13px;font-weight:600">Adicionar produto</label>
+    <select id="pedForn" onchange="pedFiltrar()" style="width:100%;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px;margin:6px 0"><option value="">Todos os fornecedores</option>${forns.map(f=>`<option value="${f.id}">${f.logo||''} ${f.nome}</option>`).join('')}</select>
+    <div style="display:flex;gap:6px;align-items:stretch"><input id="pedBusca" placeholder="🔍 Buscar nome ou SKU…" oninput="pedFiltrar()" style="flex:1;min-width:0;border:1px solid var(--borda);border-radius:8px;padding:9px;font-size:14px"><div id="pedStepper"></div></div>
+    <div id="pedResults" style="margin-top:6px;max-height:150px;overflow:auto"></div></div>`;
   h+=`<label style="font-size:13px;font-weight:600;margin-top:12px;display:block">Transportadora</label>
     <div style="display:flex;gap:6px"><input id="pTransp" value="${p.transportadora||''}" style="flex:1;border:1px solid var(--borda);border-radius:9px;padding:9px;font-size:14px"><button class="btn btn-ghost btn-sm" onclick="salvarFinPedido('${id}')">Salvar</button></div>`;
   h+=`<div id="parcBox" style="border-top:1px solid var(--borda);margin-top:14px;padding-top:12px"></div>`;
   $('detTitle').textContent='Pedido '+(p.numero||'')+' · '+p.cliente_nome;$('detBody').innerHTML=h;
   $('detFoot').innerHTML=`<button class="btn btn-primary" onclick="imprimirPedido('${id}')">🖨 Imprimir</button><button class="btn btn-ghost" onclick="closeDet()">Fechar</button>`;
-  $('detModal').classList.remove('hidden');
+  $('pedStepper').innerHTML=stepperHTML('pedQtd',1);pedFiltrar();
   const {data:parc}=await sb.from('parcelas').select('*').eq('pedido_id',id).order('numero');
   renderParcelas(id,parc||[],tot,com);
+}
+function pedFiltrar(){
+  const term=($('pedBusca')?$('pedBusca').value:'').toLowerCase().trim();const fid=$('pedForn')?$('pedForn').value:'';
+  let opts=[];
+  prods.forEach(p=>{if(fid&&p.fornecedor_id!==fid)return;
+    if(temVar(p))p.produto_variacoes.forEach(v=>opts.push({key:p.id+'#'+v.id,nome:p.nome+' ('+v.nome+')',ref:v.ref,preco:v.preco}));
+    else opts.push({key:p.id,nome:p.nome,ref:p.ref,preco:p.preco});});
+  if(term)opts=opts.filter(o=>o.nome.toLowerCase().includes(term)||(o.ref||'').toLowerCase().includes(term));
+  opts=opts.slice(0,10);
+  $('pedResults').innerHTML=opts.length?opts.map(o=>`<div onclick="pedAddKey('${o.key}')" style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px"><span>${o.nome}<br><small style="color:var(--cinza)">SKU ${o.ref||'—'}</small></span><b style="white-space:nowrap">${money(o.preco)}</b></div>`).join(''):'<div style="color:var(--cinza);font-size:13px;padding:6px">Nada encontrado.</div>';
+}
+async function pedAddKey(key){
+  const q=parseInt($('pedQtd').value)||1;const i=keyInfo(key);
+  const {error}=await sb.from('pedido_itens').insert({pedido_id:pedVerId,produto_nome:i.nome,ref:i.ref,fornecedor:i.p.fornecedores?i.p.fornecedores.nome:'',qtd:q,preco:i.preco,custo:i.p.custo!=null?i.p.custo:null});
+  if(error){alert('Erro: '+error.message);return;}await renderPedVer();carregarPedidos();if(typeof carregarFinanceiro==='function')carregarFinanceiro();
+}
+async function pedItemQty(itemId,nova){
+  if(nova<1)return pedDelItem(itemId);
+  const {error}=await sb.from('pedido_itens').update({qtd:nova}).eq('id',itemId);
+  if(error){alert('Erro: '+error.message);return;}await renderPedVer();carregarPedidos();if(typeof carregarFinanceiro==='function')carregarFinanceiro();
+}
+async function pedDelItem(itemId){
+  const {error}=await sb.from('pedido_itens').delete().eq('id',itemId);
+  if(error){alert('Erro: '+error.message);return;}await renderPedVer();carregarPedidos();if(typeof carregarFinanceiro==='function')carregarFinanceiro();
 }
 async function salvarFinPedido(id){
   const transp=$('pTransp').value.trim()||null;
@@ -1070,10 +1148,14 @@ async function salvarRecebimento(){
   const ds=$('recVenc').value;closeRec();await carregarFinanceiro();if(ds)clicarDia(ds);
 }
 function imprimirPedido(id){const p=pedMap[id];const its=p.pedido_itens||[];
+  const c=(cliList||[]).find(x=>(x.nome||'').toLowerCase()===(p.cliente_nome||'').toLowerCase())||{};
   const linhas=its.map(i=>`<tr><td>${i.produto_nome}</td><td>${i.ref||'—'}</td><td style="text-align:center">${i.qtd}</td><td style="text-align:right">${money(i.preco)}</td><td style="text-align:right">${money(i.qtd*i.preco)}</td></tr>`).join('');
   const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
-  $('printArea').innerHTML=`<div class="inv"><h1>CONEXÃO · Indústria &amp; Varejo</h1><div class="sub">Pedido ${p.numero||''} · Fornecedor: ${p.fornecedor||'—'}</div>
-    <div class="box2"><b>Cliente:</b> ${p.cliente_nome}</div>
+  const linhaCli=[c.doc?'CPF/CNPJ: '+c.doc:'',c.ie?'IE: '+c.ie:''].filter(Boolean).join(' · ');
+  const contato=[c.tel?'Tel: '+c.tel:'',c.email?'E-mail: '+c.email:''].filter(Boolean).join(' · ');
+  const ender=[c.endereco,c.cidade].filter(Boolean).join(' - ');
+  $('printArea').innerHTML=`<div class="inv"><h1>CONEXÃO · Indústria &amp; Varejo</h1><div class="sub">Pedido ${p.numero||''} · Fornecedor: ${p.fornecedor||'—'} · ${new Date(p.criado_em||Date.now()).toLocaleDateString('pt-BR')}</div>
+    <div class="box2"><b>Cliente:</b> ${p.cliente_nome}${linhaCli?'<br>'+linhaCli:''}${ender?'<br>'+ender:''}${contato?'<br>'+contato:''}</div>
     <table><thead><tr><th>Produto</th><th>Ref.</th><th style="text-align:center">Qtd</th><th style="text-align:right">Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${linhas}</tbody></table>
     <div class="tot">Total: ${money(tot)}</div></div>`;
   window.print();
@@ -1102,16 +1184,16 @@ async function carregarClientes(){
   b.innerHTML=cliList.map(c=>`<tr><td data-label="Cliente"><b>${c.nome}</b><br><small style="color:var(--cinza)">${c.responsavel||''}</small></td><td data-label="CPF/CNPJ">${c.doc||'—'}</td><td data-label="Cidade">${c.cidade||'—'}</td><td data-label="Situação"><span class="tag ${c.ja_pediu?'ok':'no'}">${c.ja_pediu?'Já pediu':'Sem pedido'}</span></td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openClienteEdit('${c.id}')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delCliente('${c.id}')">🗑</button></td></tr>`).join('');
 }
-function novoCliente(){cliEditId=null;$('caTitle').textContent='Novo cliente';['caNome','caDoc','caIE','caResp','caTel','caEnd','caCidade'].forEach(i=>$(i).value='');$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
+function novoCliente(){cliEditId=null;$('caTitle').textContent='Novo cliente';['caNome','caDoc','caIE','caResp','caTel','caEmail','caEnd','caCidade'].forEach(i=>$(i).value='');$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
 function openClienteEdit(id){const c=cliList.find(x=>x.id===id);if(!c)return;cliEditId=id;$('caTitle').textContent='Editar cliente';
-  $('caNome').value=c.nome||'';$('caDoc').value=c.doc||'';$('caIE').value=c.ie||'';$('caResp').value=c.responsavel||'';$('caTel').value=c.tel||'';$('caEnd').value=c.endereco||'';$('caCidade').value=c.cidade||'';$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
+  $('caNome').value=c.nome||'';$('caDoc').value=c.doc||'';$('caIE').value=c.ie||'';$('caResp').value=c.responsavel||'';$('caTel').value=c.tel||'';$('caEmail').value=c.email||'';$('caEnd').value=c.endereco||'';$('caCidade').value=c.cidade||'';$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
 function closeCliAdmin(){$('cliAdminModal').classList.add('hidden');}
 async function salvarCliAdmin(){
   const nome=$('caNome').value.trim();if(!nome){$('caErr').textContent='Informe o nome.';return;}
   const tel=$('caTel').value.trim(),doc=$('caDoc').value.trim();
   if(tel&&!telValido(tel)){$('caErr').textContent='WhatsApp inválido (DDD + número).';return;}
   if(!docValido(doc)){$('caErr').textContent='CPF/CNPJ inválido.';return;}
-  const dados={nome,doc,ie:$('caIE').value.trim(),responsavel:$('caResp').value.trim(),tel,endereco:$('caEnd').value.trim(),cidade:$('caCidade').value.trim()};
+  const dados={nome,doc,ie:$('caIE').value.trim(),responsavel:$('caResp').value.trim(),tel,email:$('caEmail').value.trim(),endereco:$('caEnd').value.trim(),cidade:$('caCidade').value.trim()};
   const err=cliEditId?(await sb.from('clientes').update(dados).eq('id',cliEditId)).error:(await sb.from('clientes').insert(dados)).error;
   if(err){$('caErr').textContent='Erro: '+err.message;return;}
   closeCliAdmin();carregarClientes();
