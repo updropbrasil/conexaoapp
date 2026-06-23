@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conexão Indústria & Varejo</title>
+<link rel="icon" href="/favicon-48.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#12365f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Conexão">
 <style>
   :root{--azul:#1b4f8a;--azul-esc:#12365f;--azul2:#2e86c9;--verde:#57a23a;--cinza:#64748b;--cinza-cl:#f1f5f9;--borda:#e2e8f0;--texto:#0f172a;--amarelo:#f59e0b}
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
@@ -1003,6 +1010,7 @@ async function salvarCliAdmin(){
 async function delCliente(id){if(!confirm('Excluir este cliente?'))return;const {error}=await sb.from('clientes').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarClientes();}
 
 iniciar();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}
 </script>
 </body>
 </html>
