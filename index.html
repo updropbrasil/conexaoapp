@@ -89,6 +89,25 @@
     .inv table{width:100%;border-collapse:collapse}.inv th,.inv td{border-bottom:1px solid #ddd;padding:7px;font-size:13px;text-align:left}
     .inv .tot{text-align:right;font-size:18px;font-weight:800;margin-top:12px}}
   @media(max-width:600px){.drawer{width:100%}.hero h1{font-size:24px}}
+  /* ===== PAINEL NO CELULAR ===== */
+  @media(max-width:640px){
+    .wrap{padding:14px 12px}
+    .nav{padding:10px 12px;gap:8px}.nav-actions{gap:6px}
+    .btn{padding:9px 12px;font-size:13px}.btn-sm{padding:6px 9px;font-size:12px}
+    .tabs{gap:4px}.tab{padding:10px 12px;font-size:13px}
+    .stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:14px}.stat b{font-size:20px}
+    /* tabelas viram cartões */
+    .tbl{overflow:visible;border:none;background:transparent}
+    .tbl table{min-width:0;border:none;background:transparent}
+    .tbl thead{display:none}
+    .tbl tbody tr{display:block;background:#fff;border:1px solid var(--borda);border-radius:12px;margin-bottom:10px;padding:6px 14px}
+    .tbl tbody td{display:flex;justify-content:space-between;align-items:center;gap:12px;border:none;border-bottom:1px solid #f1f5f9;padding:9px 0;font-size:13px;text-align:right;white-space:normal!important}
+    .tbl tbody td:last-child{border-bottom:none;justify-content:flex-end;flex-wrap:wrap;padding-top:10px}
+    .tbl tbody td::before{content:attr(data-label);font-weight:700;color:var(--cinza);text-align:left;flex-shrink:0}
+    .tbl tbody td:last-child::before,.tbl tbody td:not([data-label])::before{content:''}
+    .tbl tbody td select{flex:1;max-width:60%}
+    .det-table th,.det-table td{padding:7px 6px;font-size:12px}
+  }
 </style>
 </head>
 <body>
@@ -146,6 +165,12 @@
   </div>
   <section id="t-cot"><div class="tbl"><table><thead><tr><th>Cliente</th><th>Contato</th><th>Itens</th><th>Valor</th><th>Quando</th><th></th></tr></thead><tbody id="cotBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div></section>
   <section id="t-ped" class="hidden">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="pedNav(-1)">◀</button>
+      <b id="pedLabel" style="min-width:140px;text-align:center;font-size:14px;text-transform:capitalize"></b>
+      <button class="btn btn-ghost btn-sm" onclick="pedNav(1)">▶</button>
+      <label style="margin-left:auto;font-size:13px;color:var(--cinza);display:flex;align-items:center;gap:5px"><input type="checkbox" id="pedTodos" onchange="renderPedidos()"> ver todos</label>
+    </div>
     <div class="stats" id="pedStats"></div>
     <div class="tbl"><table><thead><tr><th>Pedido</th><th>Cliente / Fornecedor</th><th>Itens</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody id="pedBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div>
   </section>
@@ -666,10 +691,11 @@ async function carregarCotacoes(){
     const its=c.cotacao_itens||[];const qt=its.reduce((a,i)=>a+i.qtd,0);const val=its.reduce((a,i)=>a+i.qtd*i.preco,0);
     const tag=c.status==='pendente'?'<span class="tag pend">Pendente</span>':'<span class="tag ok">Pedido</span>';
     const quando=new Date(c.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    return `<tr><td><b>${c.cliente_nome}</b> ${tag}</td><td>${c.cliente_tel||'—'}</td><td>${qt}</td><td>${money(val)}</td><td>${quando}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verCotacao('${c.id}')">👁 Ver</button>${c.status==='pendente'?` <button class="btn btn-wpp btn-sm" onclick="gerarPedidoLista('${c.id}')">✓ Gerar pedido</button>`:''}</td></tr>`;
+    return `<tr><td data-label="Cliente"><b>${c.cliente_nome}</b> ${tag}</td><td data-label="Contato">${c.cliente_tel||'—'}</td><td data-label="Itens">${qt}</td><td data-label="Valor">${money(val)}</td><td data-label="Quando">${quando}</td>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verCotacao('${c.id}')">👁 Ver</button>${c.status==='pendente'?` <button class="btn btn-wpp btn-sm" onclick="gerarPedidoLista('${c.id}')">✓ Gerar pedido</button>`:''} <button class="btn btn-sm btn-danger" onclick="delCotacao('${c.id}')">🗑</button></td></tr>`;
   }).join('');
 }
+async function delCotacao(id){if(!confirm('Excluir esta cotação?'))return;const {error}=await sb.from('cotacoes').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarCotacoes();}
 let cotAtual=null;
 function verCotacao(id){cotAtual=id;renderCotModal();$('detModal').classList.remove('hidden');}
 function closeDet(){$('detModal').classList.add('hidden');}
@@ -752,25 +778,35 @@ async function gerarPedido(){
   alert('✓ '+nums.length+' pedido(s) gerado(s), separado(s) por fornecedor:\n'+nums.join('\n'));
 }
 function gerarPedidoLista(id){cotAtual=id;gerarPedido();}
+let pedAll=[], pedMonth=new Date();
 async function carregarPedidos(){
   const {data,error}=await sb.from('pedidos').select('*, pedido_itens(*)').order('criado_em',{ascending:false});
+  if(error){$('pedBody').innerHTML='<tr><td colspan="6" class="state">Erro: '+error.message+'</td></tr>';return;}
+  pedAll=data||[];pedMap={};pedAll.forEach(p=>pedMap[p.id]=p);
+  renderPedidos();
+}
+function pedNav(dir){pedMonth=new Date(pedMonth.getFullYear(),pedMonth.getMonth()+dir,1);renderPedidos();}
+function renderPedidos(){
   const b=$('pedBody');
-  if(error){b.innerHTML='<tr><td colspan="6" class="state">Erro: '+error.message+'</td></tr>';return;}
-  if(!data||!data.length){b.innerHTML='<tr><td colspan="6" class="state">Nenhum pedido ainda.</td></tr>';$('pedStats').innerHTML='';return;}
-  pedMap={};
-  b.innerHTML=data.map(p=>{pedMap[p.id]=p;
+  const todos=$('pedTodos')&&$('pedTodos').checked;
+  const y=pedMonth.getFullYear(),m=pedMonth.getMonth();
+  $('pedLabel').textContent=pedMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const lista=todos?pedAll:pedAll.filter(p=>{const d=new Date(p.criado_em);return d.getFullYear()===y&&d.getMonth()===m;});
+  if(!lista.length){b.innerHTML=`<tr><td colspan="6" class="state">${todos?'Nenhum pedido ainda.':'Nenhum pedido neste mês.'}</td></tr>`;}
+  else b.innerHTML=lista.map(p=>{
     const its=p.pedido_itens||[];const qt=its.reduce((a,i)=>a+i.qtd,0);const val=its.reduce((a,i)=>a+i.qtd*i.preco,0);
     const opts=Object.keys(ST).map(k=>`<option value="${k}" ${p.status===k?'selected':''}>${ST[k].t}</option>`).join('');
     const s=ST[p.status]||ST.aberto;
-    return `<tr><td><b>${p.numero||'—'}</b></td><td>${p.cliente_nome}<br><small style="color:var(--azul)">🏭 ${p.fornecedor||''}</small></td><td>${qt}</td><td>${money(val)}</td>
-      <td><select onchange="mudaStatusPedido('${p.id}',this.value)" style="border:1px solid var(--borda);border-radius:8px;padding:6px;font-weight:700;color:${s.c};background:${s.bg}">${opts}</select></td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verPedido('${p.id}')">👁 Ver</button> <button class="btn btn-primary btn-sm" onclick="imprimirPedido('${p.id}')">🖨 Imprimir</button></td></tr>`;
+    return `<tr><td data-label="Pedido"><b>${p.numero||'—'}</b></td><td data-label="Cliente">${p.cliente_nome}<br><small style="color:var(--azul)">🏭 ${p.fornecedor||''}</small></td><td data-label="Itens">${qt}</td><td data-label="Valor">${money(val)}</td>
+      <td data-label="Status"><select onchange="mudaStatusPedido('${p.id}',this.value)" style="border:1px solid var(--borda);border-radius:8px;padding:6px;font-weight:700;color:${s.c};background:${s.bg}">${opts}</select></td>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verPedido('${p.id}')">👁 Ver</button> <button class="btn btn-primary btn-sm" onclick="imprimirPedido('${p.id}')">🖨</button> <button class="btn btn-sm btn-danger" onclick="delPedido('${p.id}')">🗑</button></td></tr>`;
   }).join('');
-  const tot=data.length,ab=data.filter(p=>p.status==='aberto').length,fat=data.filter(p=>['faturado','enviado','entregue'].includes(p.status)).length;
-  const val=data.filter(p=>p.status!=='cancelado').reduce((a,p)=>a+(p.pedido_itens||[]).reduce((x,i)=>x+i.qtd*i.preco,0),0);
-  $('pedStats').innerHTML=`<div class="stat"><b>${tot}</b><span>Pedidos</span></div><div class="stat"><b style="color:#b45309">${ab}</b><span>Em aberto</span></div><div class="stat"><b style="color:var(--verde)">${fat}</b><span>Faturados+</span></div><div class="stat"><b>${money(val)}</b><span>Valor total</span></div>`;
+  const tot=lista.length,ab=lista.filter(p=>p.status==='aberto').length,fat=lista.filter(p=>['faturado','enviado','entregue'].includes(p.status)).length;
+  const fatur=lista.filter(p=>p.status!=='cancelado').reduce((a,p)=>a+(p.pedido_itens||[]).reduce((x,i)=>x+i.qtd*i.preco,0),0);
+  $('pedStats').innerHTML=`<div class="stat"><b>${tot}</b><span>Pedidos ${todos?'(todos)':'no mês'}</span></div><div class="stat"><b style="color:var(--verde)">${money(fatur)}</b><span>Faturamento ${todos?'total':'do mês'}</span></div><div class="stat"><b style="color:#b45309">${ab}</b><span>Em aberto</span></div><div class="stat"><b>${fat}</b><span>Faturados+</span></div>`;
 }
-async function mudaStatusPedido(id,st){const {error}=await sb.from('pedidos').update({status:st}).eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarPedidos();}
+async function mudaStatusPedido(id,st){const {error}=await sb.from('pedidos').update({status:st}).eq('id',id);if(error){alert('Erro: '+error.message);return;}const p=pedMap[id];if(p)p.status=st;renderPedidos();}
+async function delPedido(id){const p=pedMap[id];if(!confirm('Excluir o pedido '+((p&&p.numero)||'')+'? As parcelas dele também serão apagadas.'))return;const {error}=await sb.from('pedidos').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarPedidos();if(typeof carregarFinanceiro==='function')carregarFinanceiro();}
 async function verPedido(id){
   const p=pedMap[id];const its=p.pedido_itens||[];
   const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
@@ -992,7 +1028,7 @@ async function carregarClientes(){
   if(error){b.innerHTML='<tr><td colspan="5" class="state">Erro: '+error.message+'</td></tr>';return;}
   cliList=data||[];
   if(!cliList.length){b.innerHTML='<tr><td colspan="5" class="state">Nenhum cliente ainda.</td></tr>';return;}
-  b.innerHTML=cliList.map(c=>`<tr><td><b>${c.nome}</b><br><small style="color:var(--cinza)">${c.responsavel||''}</small></td><td>${c.doc||'—'}</td><td>${c.cidade||'—'}</td><td><span class="tag ${c.ja_pediu?'ok':'no'}">${c.ja_pediu?'Já pediu':'Sem pedido'}</span></td>
+  b.innerHTML=cliList.map(c=>`<tr><td data-label="Cliente"><b>${c.nome}</b><br><small style="color:var(--cinza)">${c.responsavel||''}</small></td><td data-label="CPF/CNPJ">${c.doc||'—'}</td><td data-label="Cidade">${c.cidade||'—'}</td><td data-label="Situação"><span class="tag ${c.ja_pediu?'ok':'no'}">${c.ja_pediu?'Já pediu':'Sem pedido'}</span></td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openClienteEdit('${c.id}')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delCliente('${c.id}')">🗑</button></td></tr>`).join('');
 }
 function novoCliente(){cliEditId=null;$('caTitle').textContent='Novo cliente';['caNome','caDoc','caIE','caResp','caTel','caEnd','caCidade'].forEach(i=>$(i).value='');$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
