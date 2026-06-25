@@ -270,7 +270,7 @@
 
 <!-- MODAL NOVO FORNECEDOR -->
 <div id="fornNewModal" class="modal hidden"><div class="box" style="width:400px">
-  <div class="bh"><h3>Novo fornecedor</h3><button class="close" onclick="closeFornNew()">✕</button></div>
+  <div class="bh"><h3 id="fnTitle">Novo fornecedor</h3><button class="close" onclick="closeFornNew()">✕</button></div>
   <div class="bb"><div class="err" id="fnErr"></div>
     <label>Nome da marca / fabricante</label><input id="fnNome">
     <label>Logo (emoji por enquanto)</label><input id="fnLogo" maxlength="2" placeholder="🏭"></div>
@@ -624,14 +624,18 @@ function renderFornAdmin(){
       <div style="width:46px;height:46px;border-radius:10px;background:#eef2f7;display:flex;align-items:center;justify-content:center;font-size:22px">${f.logo||'🏭'}</div>
       <div style="flex:1"><b>${f.nome}</b><br><small style="color:var(--cinza)">${n} produto(s)</small></div>
       <button class="btn btn-ghost btn-sm" onclick="openFornProds('${f.id}')">📋 Produtos</button>
+      <button class="btn btn-ghost btn-sm" onclick="editarFornecedor('${f.id}')">✏️</button>
       <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delFornecedor('${f.id}')">🗑</button></div>`;
   }).join(''):'<div class="state">Nenhum fornecedor. Clique em "Adicionar fornecedor".</div>';
 }
-function novoFornecedor(){$('fnNome').value='';$('fnLogo').value='';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
+let fornEditId=null;
+function novoFornecedor(){fornEditId=null;$('fnTitle').textContent='Novo fornecedor';$('fnNome').value='';$('fnLogo').value='';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
+function editarFornecedor(id){const f=forns.find(x=>x.id===id);if(!f)return;fornEditId=id;$('fnTitle').textContent='Editar fornecedor';$('fnNome').value=f.nome||'';$('fnLogo').value=f.logo||'';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
 function closeFornNew(){$('fornNewModal').classList.add('hidden');}
 async function salvarFornecedor(){const nome=$('fnNome').value.trim();if(!nome){$('fnErr').textContent='Informe o nome.';return;}
-  const {error}=await sb.from('fornecedores').insert({nome,logo:$('fnLogo').value.trim()||'🏭'});
-  if(error){$('fnErr').textContent='Erro: '+error.message;return;}closeFornNew();recarregarCat();}
+  const dados={nome,logo:$('fnLogo').value.trim()||'🏭'};
+  const err=fornEditId?(await sb.from('fornecedores').update(dados).eq('id',fornEditId)).error:(await sb.from('fornecedores').insert(dados)).error;
+  if(err){$('fnErr').textContent='Erro: '+err.message;return;}closeFornNew();recarregarCat();}
 async function delFornecedor(id){const f=forns.find(x=>x.id===id);if(!confirm('Excluir "'+f.nome+'" e TODOS os produtos dele?'))return;
   const {error}=await sb.from('fornecedores').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}recarregarCat();}
 function openFornProds(fid){fornAtualId=fid;$('fmAddBtn').onclick=()=>openProd(fid,null);renderFornProds();$('fornModal').classList.remove('hidden');}
