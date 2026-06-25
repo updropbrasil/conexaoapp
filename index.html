@@ -755,8 +755,20 @@ async function carregarCotacoes(){
     const tag=c.status==='pendente'?'<span class="tag pend">Pendente</span>':'<span class="tag ok">Pedido</span>';
     const quando=new Date(c.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<tr><td data-label="Cliente"><b>${c.cliente_nome}</b> ${tag}</td><td data-label="Contato">${c.cliente_tel||'—'}</td><td data-label="Itens">${qt}</td><td data-label="Valor">${money(val)}</td><td data-label="Quando">${quando}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verCotacao('${c.id}')">👁 Ver</button>${c.status==='pendente'?` <button class="btn btn-wpp btn-sm" onclick="gerarPedidoLista('${c.id}')">✓ Gerar pedido</button>`:''} <button class="btn btn-sm btn-danger" onclick="delCotacao('${c.id}')">🗑</button></td></tr>`;
+      <td style="white-space:nowrap"><button class="btn btn-sm" style="background:#25d366;color:#fff" onclick="whatsCotacao('${c.id}')">📲 WhatsApp</button> <button class="btn btn-ghost btn-sm" onclick="verCotacao('${c.id}')">👁 Ver</button>${c.status==='pendente'?` <button class="btn btn-wpp btn-sm" onclick="gerarPedidoLista('${c.id}')">✓ Gerar pedido</button>`:''} <button class="btn btn-sm btn-danger" onclick="delCotacao('${c.id}')">🗑</button></td></tr>`;
   }).join('');
+}
+function whatsCotacao(id){
+  const c=cotMap[id];if(!c)return;const its=c.cotacao_itens||[];
+  let tel=(c.cliente_tel||'').replace(/\D/g,'');
+  if(!tel){alert('Esta cotação não tem WhatsApp do cliente.');return;}
+  if(tel.length<=11)tel='55'+tel;
+  let msg=`Olá ${c.cliente_nome}! Tudo bem? Sobre sua cotação na Conexão Indústria & Varejo:\n`;
+  const g={};its.forEach(i=>{(g[i.fornecedor||'—']=g[i.fornecedor||'—']||[]).push(i);});
+  Object.keys(g).forEach(fn=>{msg+=`\n*${fn}:*\n`;g[fn].forEach(i=>msg+=`• ${i.qtd}x ${i.produto_nome} — ${money(i.preco)}\n`);});
+  const tot=its.reduce((a,i)=>a+i.qtd*i.preco,0);
+  msg+=`\n*Total estimado:* ${money(tot)}\n\nPodemos seguir com o pedido?`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 async function delCotacao(id){if(!confirm('Excluir esta cotação?'))return;const {error}=await sb.from('cotacoes').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}carregarCotacoes();}
 let cotAtual=null;
