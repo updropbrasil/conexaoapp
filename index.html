@@ -16,6 +16,10 @@
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
   html,body{max-width:100%;overflow-x:hidden}
   body{background:#f8fafc;color:var(--texto);line-height:1.5}
+  .btn,.tab,.mitem,.chip,select,input,button,a{touch-action:manipulation}
+  #btnMenu{display:none}
+  .mitem{padding:13px 14px;border-radius:9px;font-weight:600;font-size:15px;cursor:pointer;color:var(--texto)}
+  .mitem.active{background:#eff6ff;color:var(--azul)}.mitem:active{background:#e2e8f0}
   .hidden{display:none!important}
   header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--borda)}
   .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;gap:12px}
@@ -116,6 +120,8 @@
     .actrow{width:100%}.actrow .btn{flex:1 1 44%;justify-content:center}
     .box{width:100%!important}.modal{padding:14px 8px}
     #finCal>div{gap:3px}
+    .tabs{display:none}
+    #btnMenu{display:inline-flex;font-size:15px}
   }
 </style>
 </head>
@@ -139,8 +145,9 @@
     <button class="btn btn-ghost cart-badge" onclick="openCart()">🛒 Cotação<span class="count" id="cartCount">0</span></button>
   </div>
   <div class="nav-actions hidden" id="navPainel">
+    <button class="btn btn-ghost" id="btnMenu" onclick="toggleMenu()">☰ Menu</button>
     <span id="quemSou" style="color:var(--cinza);font-size:14px"></span>
-    <button class="btn btn-ghost" onclick="ativarPush()" title="Receber avisos neste aparelho">🔔 Ativar avisos</button>
+    <button class="btn btn-ghost" onclick="ativarPush()" title="Receber avisos neste aparelho">🔔 Avisos</button>
     <button class="btn btn-ghost" onclick="logout()">Sair</button>
   </div>
 </div></header>
@@ -165,12 +172,12 @@
 <!-- PAINEL -->
 <main id="viewPainel" class="hidden"><div class="wrap">
   <div class="tabs">
-    <div class="tab active" onclick="painelTab('cot',this)">📨 Cotações</div>
-    <div class="tab" onclick="painelTab('ped',this)">📦 Pedidos</div>
-    <div class="tab" onclick="painelTab('fin',this)">💰 Financeiro</div>
-    <div class="tab" onclick="painelTab('cat',this)">🏭 Fornecedores</div>
-    <div class="tab" onclick="painelTab('cli',this)">👥 Clientes</div>
-    <div class="tab" onclick="painelTab('apar',this)">🎨 Aparência</div>
+    <div class="tab active" data-tab="cot" onclick="setTab('cot')">📨 Cotações</div>
+    <div class="tab" data-tab="ped" onclick="setTab('ped')">📦 Pedidos</div>
+    <div class="tab" data-tab="fin" onclick="setTab('fin')">💰 Financeiro</div>
+    <div class="tab" data-tab="cat" onclick="setTab('cat')">🏭 Fornecedores</div>
+    <div class="tab" data-tab="cli" onclick="setTab('cli')">👥 Clientes</div>
+    <div class="tab" data-tab="apar" onclick="setTab('apar')">🎨 Aparência</div>
   </div>
   <section id="t-cot"><div class="tbl"><table><thead><tr><th>Cliente</th><th>Contato</th><th>Itens</th><th>Valor</th><th>Quando</th><th></th></tr></thead><tbody id="cotBody"><tr><td colspan="6" class="state">Carregando…</td></tr></tbody></table></div></section>
   <section id="t-ped" class="hidden">
@@ -383,6 +390,20 @@
   <div class="bf"><button class="btn btn-ghost" onclick="closeNovoPed()">Cancelar</button><button class="btn btn-wpp" onclick="criarNovoPed()">✓ Criar pedido</button></div>
 </div></div>
 
+<!-- MENU LATERAL (mobile) -->
+<div id="menuOverlay" class="overlay hidden" onclick="closeMenu()"></div>
+<aside id="menuDrawer" class="hidden" style="position:fixed;top:0;left:0;height:100%;width:260px;max-width:82vw;background:#fff;z-index:78;box-shadow:6px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column">
+  <div style="padding:18px 18px;border-bottom:1px solid var(--borda);display:flex;justify-content:space-between;align-items:center"><b style="color:var(--azul-esc);font-size:17px">Menu</b><button class="close" onclick="closeMenu()">✕</button></div>
+  <div style="padding:10px;display:flex;flex-direction:column;gap:4px">
+    <div class="mitem active" data-tab="cot" onclick="setTab('cot')">📨 Cotações</div>
+    <div class="mitem" data-tab="ped" onclick="setTab('ped')">📦 Pedidos</div>
+    <div class="mitem" data-tab="fin" onclick="setTab('fin')">💰 Financeiro</div>
+    <div class="mitem" data-tab="cat" onclick="setTab('cat')">🏭 Fornecedores</div>
+    <div class="mitem" data-tab="cli" onclick="setTab('cli')">👥 Clientes</div>
+    <div class="mitem" data-tab="apar" onclick="setTab('apar')">🎨 Aparência</div>
+  </div>
+</aside>
+
 <!-- LIGHTBOX FOTO -->
 <div id="imgModal" class="modal hidden" onclick="closeImg()" style="z-index:95"><img id="imgBig" src="" alt="" style="max-width:92vw;max-height:88vh;border-radius:12px;background:#fff;padding:8px"></div>
 
@@ -565,7 +586,15 @@ function entrarPainel(user){
   $('quemSou').textContent=user.email;
   carregarCatalogo(true);carregarCotacoes();carregarPedidos();carregarClientes();
 }
-function painelTab(t,el){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');['cot','ped','fin','cat','cli','apar'].forEach(s=>$('t-'+s).classList.toggle('hidden',s!==t));if(t==='ped')carregarPedidos();if(t==='fin')carregarFinanceiro();if(t==='cat')renderFornAdmin();if(t==='apar')renderApar();}
+function setTab(t){
+  ['cot','ped','fin','cat','cli','apar'].forEach(s=>$('t-'+s).classList.toggle('hidden',s!==t));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  document.querySelectorAll('.mitem').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  if(t==='ped')carregarPedidos();if(t==='fin')carregarFinanceiro();if(t==='cat')renderFornAdmin();if(t==='apar')renderApar();
+  closeMenu();window.scrollTo(0,0);
+}
+function toggleMenu(){const o=$('menuOverlay'),d=$('menuDrawer');const hid=d.classList.contains('hidden');o.classList.toggle('hidden',!hid);d.classList.toggle('hidden',!hid);}
+function closeMenu(){$('menuOverlay').classList.add('hidden');$('menuDrawer').classList.add('hidden');}
 
 /* ---------- APARÊNCIA ---------- */
 const TEMAS=[{nome:'Conexão',a:'#1b4f8a',e:'#12365f',a2:'#2e86c9'},{nome:'Verde',a:'#4f9d2f',e:'#37711f',a2:'#6cb33f'},{nome:'Azul vivo',a:'#1d6fc4',e:'#14559b',a2:'#3b9ae0'},{nome:'Grafite',a:'#374151',e:'#1f2937',a2:'#6b7280'},{nome:'Vinho',a:'#9b2c4d',e:'#7a1f3a',a2:'#c4476b'}];
@@ -849,8 +878,9 @@ async function gerarPedido(){
   }
   await sb.from('cotacoes').update({status:'pedido'}).eq('id',cotAtual);
   await sb.from('clientes').update({ja_pediu:true}).eq('nome',c.cliente_nome);
-  closeDet();carregarCotacoes();carregarPedidos();carregarClientes();
+  closeDet();carregarCotacoes();carregarClientes();
   alert('✓ '+nums.length+' pedido(s) gerado(s), separado(s) por fornecedor:\n'+nums.join('\n'));
+  setTab('ped');
 }
 function gerarPedidoLista(id){cotAtual=id;gerarPedido();}
 let pedAll=[], pedMonth=new Date();
