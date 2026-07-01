@@ -243,6 +243,7 @@
     <div class="row2"><div><label>CPF / CNPJ</label><input id="cadDoc"></div><div><label>Inscrição Estadual</label><input id="cadIE"></div></div>
     <div class="row2"><div><label>Seu nome</label><input id="cadResp"></div><div><label>WhatsApp</label><input id="cadTel"></div></div>
     <label>E-mail</label><input id="cadEmail" type="email">
+    <label>CEP</label><input id="cadCep" inputmode="numeric" maxlength="9" oninput="buscaCep('cad')" placeholder="Só números — puxa o endereço">
     <label>Endereço</label><input id="cadEnd"><label>Cidade</label><input id="cadCidade">
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeCadastro()">Cancelar</button><button class="btn btn-primary" onclick="salvarCadastro()">Finalizar cadastro</button></div>
@@ -273,7 +274,8 @@
   <div class="bh"><h3 id="fnTitle">Novo fornecedor</h3><button class="close" onclick="closeFornNew()">✕</button></div>
   <div class="bb"><div class="err" id="fnErr"></div>
     <label>Nome da marca / fabricante</label><input id="fnNome">
-    <label>Logo (emoji por enquanto)</label><input id="fnLogo" maxlength="2" placeholder="🏭"></div>
+    <label>Logo (emoji por enquanto)</label><input id="fnLogo" maxlength="2" placeholder="🏭">
+    <label>Pedido mínimo (R$) — opcional</label><input id="fnMin" type="number" step="0.01" placeholder="ex: 2000"></div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeFornNew()">Cancelar</button><button class="btn btn-primary" onclick="salvarFornecedor()">Salvar</button></div>
 </div></div>
 
@@ -304,6 +306,7 @@
     <label>Preço de venda (R$)</label><input id="pmPreco" type="number" step="0.01">
     <div style="font-size:12px;color:var(--cinza);margin-top:4px">Preencha custo + margem que o preço calcula sozinho — ou digite o preço direto.</div>
     <div id="pmVarBox"></div>
+    <div id="pmFaixaBox"></div>
   </div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeProdM()">Cancelar</button><button class="btn btn-wpp" onclick="salvarProd()">✓ Salvar</button></div>
 </div></div>
@@ -316,6 +319,7 @@
     <div class="row2"><div><label>CPF / CNPJ</label><input id="caDoc"></div><div><label>Inscrição Estadual</label><input id="caIE"></div></div>
     <div class="row2"><div><label>Contato</label><input id="caResp"></div><div><label>WhatsApp</label><input id="caTel"></div></div>
     <label>E-mail</label><input id="caEmail" type="email">
+    <label>CEP</label><input id="caCep" inputmode="numeric" maxlength="9" oninput="buscaCep('ca')" placeholder="Só números — puxa o endereço">
     <label>Endereço</label><input id="caEnd"><label>Cidade</label><input id="caCidade"></div>
   <div class="bf"><button class="btn btn-ghost" onclick="closeCliAdmin()">Cancelar</button><button class="btn btn-wpp" onclick="salvarCliAdmin()">✓ Salvar</button></div>
 </div></div>
@@ -456,7 +460,7 @@ function irCatalogo(){$('viewCatalogo').classList.remove('hidden');$('viewPainel
 async function carregarCatalogo(admin){
   const cols=admin?'*':'id,fornecedor_id,nome,ref,preco,img_url,min_mult,categoria';
   const r1=await sb.from('fornecedores').select('*').order('nome');
-  const r2=await sb.from('produtos').select(cols+', fornecedores(nome,logo), produto_variacoes(*), produto_fotos(*)').order('nome');
+  const r2=await sb.from('produtos').select(cols+', fornecedores(nome,logo), produto_variacoes(*), produto_fotos(*), produto_faixas(*)').order('nome');
   if(r1.error||r2.error){$('grid').innerHTML='<div class="state">Erro: '+((r1.error||r2.error).message)+'</div>';return;}
   forns=r1.data||[]; prods=r2.data||[];
   renderChips(); renderCats(); renderGrid();
@@ -488,8 +492,10 @@ function renderGrid(){
     const rf=temVar(p)?`<div class="card-ref">${p.produto_variacoes.length} opções</div>`:`<div class="card-ref">Ref. ${p.ref||'—'}</div>`;
     const sel=temVar(p)?`<select class="sel" id="v${p.id}">${p.produto_variacoes.map(v=>`<option value="${v.id}">${v.nome} — ${money(v.preco)}</option>`).join('')}</select>`:'';
     const step=p.min_mult||1;
+    const temFx=p.produto_faixas&&p.produto_faixas.length;
+    const fxNote=temFx?`<div style="font-size:11px;color:var(--verde);font-weight:700;margin-top:2px">💰 preço cai por volume (até ${money(Math.min(...p.produto_faixas.map(f=>Number(f.preco)),Number(p.preco)))})</div>`:'';
     return `<div class="card">${foto}<div class="card-body"><div class="card-forn">${fn}</div>
-      <div class="card-name">${p.nome}</div>${rf}${pc}${sel}
+      <div class="card-name">${p.nome}</div>${rf}${pc}${fxNote}${sel}
       <div class="add-row"><input class="qty" id="q${p.id}" type="number" value="${step}" min="${step}" step="${step}">
         <button class="btn btn-primary" onclick="addCart('${p.id}')">+ Cotar</button></div></div></div>`;
   }).join('');
@@ -513,17 +519,36 @@ function changeQty(key,d){const step=keyInfo(key).p.min_mult||1;cart[key]+=d*ste
 function removeItem(key){delete cart[key];updateCount();renderCart();}
 function openCart(){$('overlay').classList.remove('hidden');$('drawer').classList.remove('hidden');renderCart();}
 function closeCart(){$('overlay').classList.add('hidden');$('drawer').classList.add('hidden');}
-const cartTotal=()=>Object.keys(cart).reduce((a,k)=>a+keyInfo(k).preco*cart[k],0);
+const basePreco=key=>keyInfo(key).preco;
+function precoAplicado(key,subForn){
+  if(key.includes('#'))return keyInfo(key).preco; // variação não usa faixa
+  const p=keyInfo(key).p;const fx=p.produto_faixas||[];if(!fx.length)return p.preco;
+  let pr=p.preco;fx.slice().sort((a,b)=>Number(a.min_valor)-Number(b.min_valor)).forEach(f=>{if(subForn>=Number(f.min_valor))pr=Number(f.preco);});
+  return pr;
+}
+function cartCalc(){
+  const ids=Object.keys(cart);const byFid={};
+  ids.forEach(k=>{const fid=keyInfo(k).p.fornecedor_id;(byFid[fid]=byFid[fid]||{keys:[]}).keys.push(k);});
+  Object.keys(byFid).forEach(fid=>{let s=0;byFid[fid].keys.forEach(k=>s+=basePreco(k)*cart[k]);byFid[fid].subBase=s;});
+  const aplicado={};ids.forEach(k=>{aplicado[k]=precoAplicado(k,byFid[keyInfo(k).p.fornecedor_id].subBase);});
+  return {byFid,aplicado};
+}
+function cartTotal(){const {aplicado}=cartCalc();return Object.keys(cart).reduce((a,k)=>a+aplicado[k]*cart[k],0);}
 function renderCart(){
   const ids=Object.keys(cart);
   if(!ids.length){$('cartBody').innerHTML='<div class="state">Sua cotação está vazia.</div>';$('cartFoot').innerHTML='';return;}
-  const g={};ids.forEach(k=>{const fn=keyInfo(k).forn;(g[fn]=g[fn]||[]).push(k);});
-  let h='';Object.keys(g).forEach(fn=>{
-    h+=`<div style="font-weight:700;color:var(--azul);font-size:13px;margin:10px 0 2px">🏭 ${fn}</div>`;
-    h+=g[fn].map(k=>{const i=keyInfo(k);return `<div class="citem"><div style="flex:1"><b>${i.nome}</b><span class="sub">Ref. ${i.ref||'—'}</span>
-      <div class="pr">${money(i.preco)} × ${cart[k]} = ${money(i.preco*cart[k])}</div>
+  const {byFid,aplicado}=cartCalc();let h='';
+  Object.keys(byFid).forEach(fid=>{
+    const f=(forns||[]).find(x=>x.id===fid)||{};
+    h+=`<div style="font-weight:700;color:var(--azul);font-size:13px;margin:12px 0 2px">🏭 ${f.nome||'—'}</div>`;
+    h+=byFid[fid].keys.map(k=>{const i=keyInfo(k);const pr=aplicado[k];return `<div class="citem"><div style="flex:1"><b>${i.nome}</b><span class="sub">Ref. ${i.ref||'—'}</span>
+      <div class="pr">${money(pr)} × ${cart[k]} = ${money(pr*cart[k])}</div>
       <div class="ci-ctrl"><button onclick="changeQty('${k}',-1)">−</button><span style="min-width:22px;text-align:center">${cart[k]}</span>
         <button onclick="changeQty('${k}',1)">+</button><button class="rm" onclick="removeItem('${k}')">remover</button></div></div></div>`;}).join('');
+    const sub=byFid[fid].subBase;let prox=Infinity;
+    byFid[fid].keys.forEach(k=>{(keyInfo(k).p.produto_faixas||[]).forEach(fx=>{const mv=Number(fx.min_valor);if(mv>sub&&mv<prox)prox=mv;});});
+    if(f.pedido_minimo&&sub<Number(f.pedido_minimo))h+=`<div style="background:#fef2f2;color:#991b1b;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:4px">Pedido mínimo: ${money(f.pedido_minimo)} · faltam ${money(Number(f.pedido_minimo)-sub)}</div>`;
+    if(prox<Infinity)h+=`<div style="background:#eef6ff;color:var(--azul);border-radius:8px;padding:7px 10px;font-size:12px;margin-top:4px">💰 Faltam ${money(prox-sub)} pra baixar o preço (faixa de ${money(prox)})</div>`;
   });
   $('cartBody').innerHTML=h;
   $('cartFoot').innerHTML=`<div class="cart-total"><span>Total estimado</span><span>${money(cartTotal())}</span></div>
@@ -539,8 +564,8 @@ async function enviarCotacao(){
   if(!okNome){alert('Preencha seu nome/empresa.');return;}
   if(!okTel){alert('Informe um WhatsApp válido com DDD (10 ou 11 dígitos). Ex: 83 99999-9999');return;}
   const btn=$('btnEnviar');btn.textContent='Enviando…';btn.disabled=true;
-  const cotId=uuid();
-  const itens=Object.keys(cart).map(k=>{const i=keyInfo(k);return {cotacao_id:cotId,produto_nome:i.nome,ref:i.ref,fornecedor:i.forn,qtd:cart[k],preco:i.preco};});
+  const cotId=uuid();const {aplicado}=cartCalc();
+  const itens=Object.keys(cart).map(k=>{const i=keyInfo(k);return {cotacao_id:cotId,produto_nome:i.nome,ref:i.ref,fornecedor:i.forn,qtd:cart[k],preco:aplicado[k]};});
   const e1=(await sb.from('cotacoes').insert({id:cotId,cliente_nome:nome,cliente_tel:tel,status:'pendente'})).error;
   const e2=e1?null:(await sb.from('cotacao_itens').insert(itens)).error;
   if(e1||e2){alert('Erro ao enviar: '+((e1||e2).message));btn.textContent='📲 Enviar cotação';btn.disabled=false;return;}
@@ -555,7 +580,22 @@ async function enviarCotacao(){
 }
 
 /* ---------- CADASTRO ---------- */
-function openCadastro(){['cadNome','cadDoc','cadIE','cadResp','cadTel','cadEmail','cadEnd','cadCidade'].forEach(i=>$(i).value='');$('cadErr').textContent='';$('cadModal').classList.remove('hidden');}
+async function buscaCep(pfx){
+  const el=$(pfx+'Cep');if(!el)return;
+  const cep=(el.value||'').replace(/\D/g,'');
+  if(cep.length!==8)return;
+  try{
+    const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d=await r.json();
+    if(d&&!d.erro){
+      const end=[d.logradouro,d.bairro].filter(Boolean).join(', ');
+      if(end)$(pfx+'End').value=end;
+      const cid=[d.localidade,d.uf].filter(Boolean).join('/');
+      if(cid)$(pfx+'Cidade').value=cid;
+    }
+  }catch(e){}
+}
+function openCadastro(){['cadNome','cadDoc','cadIE','cadResp','cadTel','cadEmail','cadCep','cadEnd','cadCidade'].forEach(i=>$(i).value='');$('cadErr').textContent='';$('cadModal').classList.remove('hidden');}
 function closeCadastro(){$('cadModal').classList.add('hidden');}
 async function salvarCadastro(){
   const nome=$('cadNome').value.trim(), tel=$('cadTel').value.trim(), doc=$('cadDoc').value.trim();
@@ -565,7 +605,7 @@ async function salvarCadastro(){
   if(!okNome){$('cadErr').textContent='Informe o nome da loja/empresa.';return;}
   if(!okTel){$('cadErr').textContent='WhatsApp inválido. Use DDD + número (10 ou 11 dígitos).';return;}
   if(!okDoc){$('cadErr').textContent='CPF/CNPJ inválido. CPF tem 11 dígitos e CNPJ 14.';return;}
-  const {error}=await sb.from('clientes').insert({nome,doc,ie:$('cadIE').value.trim(),responsavel:$('cadResp').value.trim(),tel,email:$('cadEmail').value.trim(),endereco:$('cadEnd').value.trim(),cidade:$('cadCidade').value.trim()});
+  const {error}=await sb.from('clientes').insert({nome,doc,ie:$('cadIE').value.trim(),responsavel:$('cadResp').value.trim(),tel,email:$('cadEmail').value.trim(),cep:$('cadCep').value.trim(),endereco:$('cadEnd').value.trim(),cidade:$('cadCidade').value.trim()});
   if(error){$('cadErr').textContent='Erro: '+error.message;return;}
   closeCadastro();alert('✓ Cadastro realizado! Em breve nosso representante entra em contato.');
 }
@@ -629,11 +669,11 @@ function renderFornAdmin(){
   }).join(''):'<div class="state">Nenhum fornecedor. Clique em "Adicionar fornecedor".</div>';
 }
 let fornEditId=null;
-function novoFornecedor(){fornEditId=null;$('fnTitle').textContent='Novo fornecedor';$('fnNome').value='';$('fnLogo').value='';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
-function editarFornecedor(id){const f=forns.find(x=>x.id===id);if(!f)return;fornEditId=id;$('fnTitle').textContent='Editar fornecedor';$('fnNome').value=f.nome||'';$('fnLogo').value=f.logo||'';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
+function novoFornecedor(){fornEditId=null;$('fnTitle').textContent='Novo fornecedor';$('fnNome').value='';$('fnLogo').value='';$('fnMin').value='';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
+function editarFornecedor(id){const f=forns.find(x=>x.id===id);if(!f)return;fornEditId=id;$('fnTitle').textContent='Editar fornecedor';$('fnNome').value=f.nome||'';$('fnLogo').value=f.logo||'';$('fnMin').value=f.pedido_minimo!=null?f.pedido_minimo:'';$('fnErr').textContent='';$('fornNewModal').classList.remove('hidden');}
 function closeFornNew(){$('fornNewModal').classList.add('hidden');}
 async function salvarFornecedor(){const nome=$('fnNome').value.trim();if(!nome){$('fnErr').textContent='Informe o nome.';return;}
-  const dados={nome,logo:$('fnLogo').value.trim()||'🏭'};
+  const dados={nome,logo:$('fnLogo').value.trim()||'🏭',pedido_minimo:$('fnMin').value?parseFloat($('fnMin').value):null};
   const err=fornEditId?(await sb.from('fornecedores').update(dados).eq('id',fornEditId)).error:(await sb.from('fornecedores').insert(dados)).error;
   if(err){$('fnErr').textContent='Erro: '+err.message;return;}closeFornNew();recarregarCat();}
 async function delFornecedor(id){const f=forns.find(x=>x.id===id);if(!confirm('Excluir "'+f.nome+'" e TODOS os produtos dele?'))return;
@@ -661,7 +701,7 @@ function openProd(fid,pid){
   $('pmPreco').value=p&&p.preco!=null?p.preco:'';$('pmMin').value=p&&p.min_mult?p.min_mult:1;
   $('pmFoto').innerHTML=(p&&p.img_url)?`<div style="text-align:center;margin-bottom:6px"><img src="${p.img_url}" onclick="openImg('${p.img_url}')" style="max-height:130px;max-width:100%;object-fit:contain;border:1px solid var(--borda);border-radius:10px;background:#fff;cursor:zoom-in"></div>`:'';
   $('pmFotoFile').value='';$('pmFotoMsg').textContent=prodEditId?'Envie o arquivo direto do computador/celular.':'Salve o produto antes de enviar a foto.';
-  renderVarBox(p);$('prodModal').classList.remove('hidden');
+  renderVarBox(p);renderFaixaBox(p);$('prodModal').classList.remove('hidden');
 }
 async function enviarFotoProduto(input){
   if(!prodEditId){alert('Salve o produto primeiro, depois envie a foto.');input.value='';return;}
@@ -705,6 +745,29 @@ async function addVar(){
 }
 async function delVar(id){const {error}=await sb.from('produto_variacoes').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}
   await carregarCatalogo();renderVarBox(prodById(prodEditId));renderFornProds();renderFornAdmin();}
+function renderFaixaBox(p){
+  const box=$('pmFaixaBox');
+  if(!p){box.innerHTML='';return;}
+  const fx=(p.produto_faixas||[]).slice().sort((a,b)=>Number(a.min_valor)-Number(b.min_valor));
+  box.innerHTML=`<label style="margin-top:14px">Preço por faixa de valor do pedido <span style="color:var(--cinza);font-weight:400">(atacado)</span></label>
+    <div style="font-size:12px;color:var(--cinza);margin-bottom:4px">O preço acima é o base. Aqui você põe os preços melhores conforme o pedido do fornecedor sobe.</div>
+    ${fx.map(f=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--borda);font-size:13px"><span style="flex:1">Acima de <b>${money(f.min_valor)}</b></span><b>${money(f.preco)}</b><button onclick="delFaixa('${f.id}')" style="border:none;background:none;color:#dc2626;cursor:pointer">🗑</button></div>`).join('')||'<div style="color:var(--cinza);font-size:13px;padding:4px 0">Sem faixas (usa o preço base sempre).</div>'}
+    <div style="display:flex;gap:5px;margin-top:8px;align-items:center"><span style="font-size:12px;color:var(--cinza)">Acima de R$</span>
+      <input id="fxMin" type="number" step="0.01" placeholder="5000" style="width:90px;border:1px solid var(--borda);border-radius:8px;padding:8px;font-size:13px">
+      <span style="font-size:12px;color:var(--cinza)">→ preço R$</span>
+      <input id="fxPreco" type="number" step="0.01" placeholder="12,75" style="width:80px;border:1px solid var(--borda);border-radius:8px;padding:8px;font-size:13px">
+      <button class="btn btn-primary btn-sm" onclick="addFaixa()">+</button></div>`;
+}
+async function addFaixa(){
+  if(!prodEditId)return;
+  const mv=parseFloat($('fxMin').value);const pr=parseFloat($('fxPreco').value);
+  if(isNaN(mv)||isNaN(pr)){alert('Preencha o valor mínimo e o preço da faixa.');return;}
+  const {error}=await sb.from('produto_faixas').insert({produto_id:prodEditId,min_valor:mv,preco:pr});
+  if(error){alert('Erro: '+error.message);return;}
+  await carregarCatalogo(true);renderFaixaBox(prodById(prodEditId));
+}
+async function delFaixa(id){const {error}=await sb.from('produto_faixas').delete().eq('id',id);if(error){alert('Erro: '+error.message);return;}
+  await carregarCatalogo(true);renderFaixaBox(prodById(prodEditId));}
 async function salvarProd(){
   const nome=$('pmNome').value.trim();if(!nome){$('pmErr').textContent='Informe o nome.';return;}
   const dados={fornecedor_id:fornAtualId,nome,categoria:$('pmCat').value.trim()||null,ref:$('pmRef').value.trim(),custo:$('pmCusto').value?parseFloat($('pmCusto').value):null,margem_tipo:$('pmMargTipo').value,margem_val:$('pmMargVal').value?parseFloat($('pmMargVal').value):null,preco:$('pmPreco').value?parseFloat($('pmPreco').value):null,min_mult:parseInt($('pmMin').value)||1};
@@ -1223,7 +1286,7 @@ async function imprimirPedido(id){
   doc.setTextColor(20,20,20);let y=92;doc.setFontSize(11);doc.setFont(undefined,'bold');
   doc.text('Cliente: '+(p.cliente_nome||''),40,y);doc.setFont(undefined,'normal');doc.setFontSize(10);y+=15;
   const linhaCli=[c.doc?'CPF/CNPJ: '+c.doc:'',c.ie?'IE: '+c.ie:''].filter(Boolean).join('   ·   ');
-  const ender=[c.endereco,c.cidade].filter(Boolean).join(' - ');
+  const ender=[c.endereco,c.cidade,c.cep?'CEP '+c.cep:''].filter(Boolean).join(' - ');
   const contato=[c.tel?'Tel: '+c.tel:'',c.email?'E-mail: '+c.email:''].filter(Boolean).join('   ·   ');
   [linhaCli,ender,contato].forEach(l=>{if(l){doc.text(l,40,y);y+=14;}});
   doc.autoTable({startY:y+8,head:[['Produto','Ref.','Qtd','Unit.','Subtotal']],
@@ -1267,16 +1330,16 @@ async function carregarClientes(){
   b.innerHTML=cliList.map(c=>`<tr><td data-label="Cliente"><b>${c.nome}</b><br><small style="color:var(--cinza)">${c.responsavel||''}</small></td><td data-label="CPF/CNPJ">${c.doc||'—'}</td><td data-label="Cidade">${c.cidade||'—'}</td><td data-label="Situação"><span class="tag ${c.ja_pediu?'ok':'no'}">${c.ja_pediu?'Já pediu':'Sem pedido'}</span></td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openClienteEdit('${c.id}')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delCliente('${c.id}')">🗑</button></td></tr>`).join('');
 }
-function novoCliente(){cliEditId=null;$('caTitle').textContent='Novo cliente';['caNome','caDoc','caIE','caResp','caTel','caEmail','caEnd','caCidade'].forEach(i=>$(i).value='');$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
+function novoCliente(){cliEditId=null;$('caTitle').textContent='Novo cliente';['caNome','caDoc','caIE','caResp','caTel','caEmail','caCep','caEnd','caCidade'].forEach(i=>$(i).value='');$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
 function openClienteEdit(id){const c=cliList.find(x=>x.id===id);if(!c)return;cliEditId=id;$('caTitle').textContent='Editar cliente';
-  $('caNome').value=c.nome||'';$('caDoc').value=c.doc||'';$('caIE').value=c.ie||'';$('caResp').value=c.responsavel||'';$('caTel').value=c.tel||'';$('caEmail').value=c.email||'';$('caEnd').value=c.endereco||'';$('caCidade').value=c.cidade||'';$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
+  $('caNome').value=c.nome||'';$('caDoc').value=c.doc||'';$('caIE').value=c.ie||'';$('caResp').value=c.responsavel||'';$('caTel').value=c.tel||'';$('caEmail').value=c.email||'';$('caCep').value=c.cep||'';$('caEnd').value=c.endereco||'';$('caCidade').value=c.cidade||'';$('caErr').textContent='';$('cliAdminModal').classList.remove('hidden');}
 function closeCliAdmin(){$('cliAdminModal').classList.add('hidden');}
 async function salvarCliAdmin(){
   const nome=$('caNome').value.trim();if(!nome){$('caErr').textContent='Informe o nome.';return;}
   const tel=$('caTel').value.trim(),doc=$('caDoc').value.trim();
   if(tel&&!telValido(tel)){$('caErr').textContent='WhatsApp inválido (DDD + número).';return;}
   if(!docValido(doc)){$('caErr').textContent='CPF/CNPJ inválido.';return;}
-  const dados={nome,doc,ie:$('caIE').value.trim(),responsavel:$('caResp').value.trim(),tel,email:$('caEmail').value.trim(),endereco:$('caEnd').value.trim(),cidade:$('caCidade').value.trim()};
+  const dados={nome,doc,ie:$('caIE').value.trim(),responsavel:$('caResp').value.trim(),tel,email:$('caEmail').value.trim(),cep:$('caCep').value.trim(),endereco:$('caEnd').value.trim(),cidade:$('caCidade').value.trim()};
   const err=cliEditId?(await sb.from('clientes').update(dados).eq('id',cliEditId)).error:(await sb.from('clientes').insert(dados)).error;
   if(err){$('caErr').textContent='Erro: '+err.message;return;}
   closeCliAdmin();carregarClientes();
