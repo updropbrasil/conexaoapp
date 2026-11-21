@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+/*
+ * Identidade: herda o azul e o verde do emblema da Conexão, num tom mais sóbrio.
+ * tinta = azul-marinho profundo (cabeçalhos, botões principais)
+ * marca = azul Conexão · folha = verde Conexão (ações de envio/sucesso)
+ * areia = fundo quente, deixa as fotos dos produtos "saltarem"
+ */
+@theme {
+  --color-tinta: #0f2a47;
+  --color-tinta-2: #163a61;
+  --color-marca: #1b4f8a;
+  --color-marca-claro: #e8f0f9;
+  --color-folha: #3f8f2a;
+  --color-folha-claro: #eaf5e4;
+  --color-areia: #f6f4ef;
+  --color-areia-2: #efece5;
+  --color-linha: #e6e2d9;
+  --color-texto: #1a1d21;
+  --color-suave: #6b6f76;
+  --color-alerta: #b45309;
+  --color-alerta-claro: #fff4e0;
+  --color-perigo: #b42318;
+  --color-perigo-claro: #fdecea;
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(15 42 71 / 0.04), 0 4px 16px -6px rgb(15 42 71 / 0.1);
+  --shadow-flutua: 0 10px 30px -10px rgb(15 42 71 / 0.35);
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  @apply bg-areia text-texto antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+@layer base {
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@utility btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[15px] font-semibold whitespace-nowrap transition active:scale-[.98] disabled:opacity-50 cursor-pointer select-none;
+  }
+
+@utility btn-tinta {
+    @apply btn bg-tinta text-white hover:bg-tinta-2;
+  }
+
+@utility btn-folha {
+    @apply btn bg-folha text-white hover:brightness-110;
+  }
+
+@utility btn-claro {
+    @apply btn bg-white text-texto ring-1 ring-linha hover:bg-areia;
+  }
+
+@utility btn-sm {
+    @apply px-3.5 py-2 text-[13px];
+  }
+
+@utility campo {
+    @apply w-full rounded-xl border border-linha bg-white px-3.5 py-3 text-[15px] outline-none transition placeholder:text-suave/70 focus:border-marca focus:ring-4 focus:ring-marca/10;
+  }
+
+@utility rotulo {
+    @apply mb-1.5 block text-[13px] font-semibold text-suave;
+  }
+
+@utility cartao {
+    @apply rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)];
+  }
+
+@utility pilula {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold leading-none whitespace-nowrap;
+  }
+
+@utility sem-barra {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.pb-seguro {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
