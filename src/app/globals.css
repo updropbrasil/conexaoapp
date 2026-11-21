@@ -107,3 +107,14 @@ textarea {
 .pb-seguro {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+
+@media print {
+  aside,
+  nav,
+  header {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

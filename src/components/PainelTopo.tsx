@@ -19,18 +19,3 @@ export function PainelTopo({ titulo, sub, voltar, acoes }: { titulo: string; sub
     </header>
   );
 }
-
-export function EmBreve({ titulo, texto }: { titulo: string; texto: string }) {
-  return (
-    <>
-      <PainelTopo titulo={titulo} />
-      <div className="mx-auto max-w-5xl px-4 pt-6">
-        <div className="cartao grid place-items-center gap-2 px-6 py-14 text-center">
-          <Icone n="info" className="size-8 text-marca" />
-          <p className="font-semibold text-tinta">Entra na Fase 2</p>
-          <p className="max-w-sm text-sm text-suave">{texto}</p>
-        </div>
-      </div>
-    </>
-  );
-}

@@ -1,11 +1,11 @@
-// Gera as "fotos" ilustrativas do modo de teste (mock) em public/mock/fotos.
+// Gera as "fotos" ilustrativas do modo de teste (mock) em scripts/teste/fotos.
 // Mesmo padrão que o app vai usar no upload real: grande 1200px WebP q0.8 + miniatura 300px WebP.
 // Uso: node scripts/gerar-fotos-mock.mjs
 import sharp from 'sharp';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const OUT = join(process.cwd(), 'public/mock/fotos');
+const OUT = join(process.cwd(), 'scripts/teste/fotos');
 mkdirSync(OUT, { recursive: true });
 
 const shade = (hex, f) => {

@@ -36,3 +36,9 @@ export const CORES_CATEGORIA = [
   { fundo: '#fdeceb', texto: '#9f2a1f' },
 ];
 export const corCategoria = (i: number | null | undefined) => CORES_CATEGORIA[(i ?? 0) % CORES_CATEGORIA.length];
+
+/** "novembro de 2026" → "Novembro de 2026" */
+export const mesAno = (d: Date) => {
+  const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};

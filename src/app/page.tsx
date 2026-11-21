@@ -7,14 +7,14 @@ import { useLoja } from '@/components/Loja';
 import { Aviso, BotaoCotacao, Marca } from '@/components/Topo';
 import { BarraCotacao } from '@/components/BarraCotacao';
 import { corCategoria, miniatura, normTxt } from '@/lib/formato';
-import { NOVOS } from '@/lib/mock/dados';
+import { ehNovo } from '@/lib/catalogo';
 import { precoBase } from '@/lib/preco';
 
 const POS = ['left-0 top-6 -rotate-6', 'right-2 top-0 rotate-3', 'left-16 bottom-0 rotate-2', 'right-0 bottom-6 -rotate-3'];
 type Ordem = 'relevancia' | 'menor' | 'az';
 
 export default function Catalogo() {
-  const { produtos, fornecedores } = useLoja();
+  const { produtos, fornecedores, carregando, erro, aparencia } = useLoja();
   const [cat, setCat] = useState<string>('');
   const [sub, setSub] = useState<string>('');
   const [busca, setBusca] = useState('');
@@ -36,11 +36,11 @@ export default function Catalogo() {
     );
     if (ordem === 'menor') l = [...l].sort((a, b) => precoBase(a) - precoBase(b));
     if (ordem === 'az') l = [...l].sort((a, b) => a.nome.localeCompare(b.nome));
-    if (ordem === 'relevancia') l = [...l].sort((a, b) => Number(NOVOS.has(b.id)) - Number(NOVOS.has(a.id)));
+    if (ordem === 'relevancia') l = [...l].sort((a, b) => Number(ehNovo(b)) - Number(ehNovo(a)));
     return l;
   }, [produtos, cat, sub, busca, ordem]);
 
-  const novidades = produtos.filter((p) => NOVOS.has(p.id));
+  const novidades = produtos.filter(ehNovo).slice(0, 12);
   const vitrine = categorias.map((f) => produtos.find((p) => p.fornecedor_id === f.id && p.img_url)!).filter(Boolean).slice(0, 4);
   const filtrando = !!(cat || busca);
 
@@ -103,6 +103,9 @@ export default function Catalogo() {
       </section>
 
       <main className="mx-auto max-w-6xl px-4">
+        {aparencia.banner_url && !filtrando && (
+          <img src={aparencia.banner_url} alt="" className="mt-5 aspect-[3/1] w-full rounded-[var(--radius-card)] object-cover shadow-[var(--shadow-card)] sm:aspect-[4/1]" />
+        )}
         {!filtrando && novidades.length > 0 && (
           <section className="pt-6">
             <div className="mb-3 flex items-end justify-between">
@@ -144,17 +147,26 @@ export default function Catalogo() {
               ))}
             </div>
           )}
-          {lista.length ? (
+          {carregando && !produtos.length ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 8 }, (_, k) => (
+                <div key={k} className="cartao overflow-hidden">
+                  <div className="aspect-square animate-pulse bg-areia-2" />
+                  <div className="space-y-2 p-3"><div className="h-3 w-3/4 animate-pulse rounded bg-areia-2" /><div className="h-4 w-1/2 animate-pulse rounded bg-areia-2" /></div>
+                </div>
+              ))}
+            </div>
+          ) : lista.length ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
               {lista.map((p) => (
-                <CartaoProduto key={p.id} p={p} novo={NOVOS.has(p.id)} categoria={cat ? (p.categoria ?? undefined) : nomeCat(p.fornecedor_id)} />
+                <CartaoProduto key={p.id} p={p} novo={ehNovo(p)} categoria={cat ? (p.categoria ?? undefined) : nomeCat(p.fornecedor_id)} />
               ))}
             </div>
           ) : (
             <div className="cartao grid place-items-center gap-2 px-6 py-14 text-center">
               <Icone n="busca" className="size-8 text-suave/60" />
-              <p className="font-semibold">Nada encontrado</p>
-              <p className="text-sm text-suave">Tente outro nome ou a referência do produto.</p>
+              <p className="font-semibold">{erro ? 'Não foi possível carregar o catálogo' : produtos.length ? 'Nada encontrado' : 'Catálogo em atualização'}</p>
+              <p className="text-sm text-suave">{erro ? erro : produtos.length ? 'Tente outro nome ou a referência do produto.' : 'Estamos cadastrando os produtos. Volte em breve!'}</p>
             </div>
           )}
         </section>
@@ -164,7 +176,7 @@ export default function Catalogo() {
             <h2 className="text-lg font-bold text-tinta">Tem loja? Cadastre-se</h2>
             <p className="mt-1 text-sm text-suave">Com o cadastro, o representante já recebe seus dados para faturar o pedido.</p>
           </div>
-          <button className="btn-tinta mt-4 w-full sm:mt-0 sm:w-auto">Cadastrar minha loja</button>
+          <Link href="/cadastro/" className="btn-tinta mt-4 w-full sm:mt-0 sm:w-auto">Cadastrar minha loja</Link>
         </section>
         <footer className="flex items-center justify-between py-8 text-[12px] text-suave">
           <span>© Conexão Indústria &amp; Varejo</span>

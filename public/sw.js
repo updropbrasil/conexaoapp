@@ -1,5 +1,5 @@
-// Service worker — Conexão Vendas v2 (PWA + cache de fotos + web push)
-const VERSAO = 'v2-1';
+// Service worker — Conexão Vendas v2 (PWA instalável + cache de fotos). Sem notificações push.
+const VERSAO = 'v2-2';
 const SHELL = `conexao-shell-${VERSAO}`;
 const FOTOS = 'conexao-fotos-v1'; // não muda de nome a cada versão: fotos ficam no aparelho
 const MAX_FOTOS = 600;
@@ -10,7 +10,14 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('conexao-shell-') && k !== SHELL).map((k) => caches.delete(k)))));
+  e.waitUntil(
+    Promise.all([
+      // apaga caches antigos (inclusive o "conexao-v3" do app anterior)
+      caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== SHELL && k !== FOTOS).map((k) => caches.delete(k)))),
+      // o app antigo assinava notificações push; o novo não usa mais — cancela a assinatura deste aparelho
+      self.registration.pushManager ? self.registration.pushManager.getSubscription().then((s) => s && s.unsubscribe()).catch(() => {}) : null,
+    ]),
+  );
   self.clients.claim();
 });
 
@@ -61,26 +68,4 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/_next/static/')) {
     e.respondWith(caches.open(SHELL).then(async (c) => (await c.match(req)) || fetch(req).then((res) => (c.put(req, res.clone()), res))));
   }
-});
-
-// ---------- WEB PUSH (mesmo formato do app atual) ----------
-self.addEventListener('push', (e) => {
-  let d = { title: 'Conexão', body: 'Você tem uma novidade', url: '/painel/' };
-  try {
-    d = Object.assign(d, e.data.json());
-  } catch (_) {
-    if (e.data) d.body = e.data.text();
-  }
-  e.waitUntil(self.registration.showNotification(d.title, { body: d.body, icon: '/icon-192.png', badge: '/icon-192.png', data: d.url || '/' }));
-});
-
-self.addEventListener('notificationclick', (e) => {
-  e.notification.close();
-  const url = e.notification.data || '/';
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ws) => {
-      for (const w of ws) if (w.url.includes(self.location.origin)) return w.focus();
-      return clients.openWindow(url);
-    }),
-  );
 });

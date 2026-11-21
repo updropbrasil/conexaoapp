@@ -6,7 +6,9 @@ import { Icone, IconeWhats } from '@/components/Icone';
 import { useLoja } from '@/components/Loja';
 import { Quantidade } from '@/components/Quantidade';
 import { TopoSimples } from '@/components/Topo';
-import { corCategoria, dinheiro, miniatura } from '@/lib/formato';
+import { corCategoria, dinheiro } from '@/lib/formato';
+import { Mini } from '@/components/Foto';
+import { enviarCotacao } from '@/lib/cotacao';
 import { multiplo } from '@/lib/preco';
 
 const soDigitos = (s: string) => s.replace(/\D/g, '');
@@ -24,16 +26,27 @@ export default function Cotacao() {
   const [tel, setTel] = useState('');
   const [erro, setErro] = useState('');
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [linkWhats, setLinkWhats] = useState('');
   const nItens = resumo.grupos.reduce((a, g) => a + g.linhas.length, 0);
 
-  const enviar = () => {
+  const enviar = async () => {
     if (!nome.trim()) return setErro('Informe o nome da sua loja ou empresa.');
     const d = soDigitos(tel);
     if (d.length !== 10 && d.length !== 11) return setErro('Informe um WhatsApp válido com DDD.');
     setErro('');
-    // Fase 2: grava em cotacoes/cotacao_itens (anon pode inserir) e abre o WhatsApp do representante.
-    limpar();
-    setEnviado(true);
+    setEnviando(true);
+    try {
+      const link = await enviarCotacao(nome.trim(), tel, tipo, resumo);
+      setLinkWhats(link);
+      limpar();
+      setEnviado(true);
+      window.open(link, '_blank');
+    } catch (e) {
+      setErro('Não foi possível enviar: ' + (e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   if (enviado)
@@ -46,7 +59,12 @@ export default function Cotacao() {
           </span>
           <h2 className="mt-5 text-2xl font-extrabold text-tinta">Recebemos sua {tipo === 'pedido' ? 'solicitação de pedido' : 'cotação'}!</h2>
           <p className="mt-2 text-suave">O representante vai responder pelo WhatsApp com os preços e prazos.</p>
-          <Link href="/" className="btn-tinta mt-8">Voltar ao catálogo</Link>
+          {linkWhats && (
+            <a href={linkWhats} target="_blank" rel="noopener" className="btn-folha mt-8">
+              <IconeWhats className="size-5" /> Avisar no WhatsApp
+            </a>
+          )}
+          <Link href="/" className="btn-claro mt-3">Voltar ao catálogo</Link>
         </div>
       </div>
     );
@@ -83,7 +101,7 @@ export default function Cotacao() {
                     {g.linhas.map((l) => (
                       <li key={l.chave} className="flex gap-3 px-4 py-3.5">
                         <Link href={`/produto/?id=${l.produto.id}`} className="size-[72px] shrink-0 overflow-hidden rounded-xl bg-areia-2">
-                          {l.produto.img_url ? <img src={miniatura(l.produto.img_url)!} alt="" loading="lazy" className="size-full object-cover" /> : <FotoVazia className="size-full" />}
+                          {l.produto.img_url ? <Mini url={l.produto.img_url} className="size-full object-cover" /> : <FotoVazia className="size-full" />}
                         </Link>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2">
@@ -159,8 +177,8 @@ export default function Cotacao() {
                   <input id="tel" className="campo num" inputMode="tel" value={tel} onChange={(e) => setTel(mascaraTel(e.target.value))} placeholder="(83) 90000-0000" />
                 </div>
                 {erro && <p className="rounded-xl bg-perigo-claro px-3 py-2 text-[13px] font-medium text-perigo">{erro}</p>}
-                <button onClick={enviar} className="btn-folha h-13 w-full text-[16px]">
-                  <IconeWhats className="size-5" /> {tipo === 'pedido' ? 'Enviar pedido' : 'Enviar cotação'}
+                <button onClick={enviar} disabled={enviando} className="btn-folha h-13 w-full text-[16px]">
+                  <IconeWhats className="size-5" /> {enviando ? 'Enviando…' : tipo === 'pedido' ? 'Enviar pedido' : 'Enviar cotação'}
                 </button>
               </div>
             </div>

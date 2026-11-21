@@ -1,7 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AdminProvider, useAdmin } from '@/components/Admin';
 import { Emblema, Icone } from '@/components/Icone';
+import { Aviso } from '@/components/Topo';
+import { sb } from '@/lib/supabase';
 
 const NAV = [
   { href: '/painel/pedidos/', n: 'caixa', t: 'Pedidos' },
@@ -10,16 +13,27 @@ const NAV = [
   { href: '/painel/clientes/', n: 'pessoas', t: 'Clientes' },
 ];
 const EXTRA = [
-  { href: '/painel/importar/', n: 'upload', t: 'Importar catálogo' },
-  { href: '/painel/categorias/', n: 'etiqueta', t: 'Categorias' },
   { href: '/painel/financeiro/', n: 'carteira', t: 'Financeiro' },
+  { href: '/painel/categorias/', n: 'etiqueta', t: 'Categorias' },
+  { href: '/painel/importar/', n: 'upload', t: 'Importar catálogo' },
+  { href: '/painel/aparencia/', n: 'brilho', t: 'Aparência' },
 ];
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminProvider>
+      <Casca>{children}</Casca>
+    </AdminProvider>
+  );
+}
+
+function Casca({ children }: { children: React.ReactNode }) {
+  const { email } = useAdmin();
   const path = usePathname();
   const ativo = (h: string) => path.startsWith(h) || (h === '/painel/produtos/' && path.startsWith('/painel/importar'));
   return (
     <div className="min-h-dvh lg:pl-64">
+      <Aviso />
       {/* lateral (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-tinta px-4 py-5 text-white lg:flex">
         <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
@@ -37,8 +51,9 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
         <div className="mt-auto space-y-1 border-t border-white/10 pt-4">
-          <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-white/65 hover:bg-white/6"><Icone n="sino" /> Avisos neste aparelho</button>
-          <Link href="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-white/65 hover:bg-white/6"><Icone n="sair" /> Ver catálogo</Link>
+          <p className="truncate px-3 pb-1 text-[12px] text-white/45">{email}</p>
+          <Link href="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-white/65 hover:bg-white/6"><Icone n="casa" /> Ver catálogo</Link>
+          <button onClick={() => sb().auth.signOut()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-white/65 hover:bg-white/6"><Icone n="sair" /> Sair</button>
         </div>
       </aside>
 

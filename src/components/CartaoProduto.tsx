@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { dinheiro, miniatura } from '@/lib/formato';
+import { dinheiro } from '@/lib/formato';
+import { Mini } from './Foto';
 import { menorPreco, multiplo, precoBase, temVariacao } from '@/lib/preco';
 import type { Produto } from '@/lib/types';
 import { Icone } from './Icone';
@@ -20,7 +21,7 @@ export function CartaoProduto({ p, novo = false, categoria }: { p: Produto; novo
     <Link href={`/produto/?id=${p.id}`} className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-square overflow-hidden bg-areia-2">
         {p.img_url ? (
-          <img src={miniatura(p.img_url)!} alt={p.nome} loading="lazy" decoding="async" width={300} height={300} className="size-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+          <Mini url={p.img_url} alt={p.nome} className="size-full object-cover transition duration-500 group-hover:scale-[1.04]" />
         ) : (
           <FotoVazia className="size-full" />
         )}

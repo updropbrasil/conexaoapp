@@ -119,7 +119,19 @@ export interface Cotacao {
   id: string;
   cliente_nome: string;
   cliente_tel: string | null;
-  status: 'pendente' | 'pedido';
+  status: 'pendente' | 'fechar' | 'pedido'; // 'fechar' = cliente clicou "Fazer pedido" no catálogo
   criado_em: string;
   cotacao_itens: CotacaoItem[];
+}
+
+export interface Lancamento {
+  id: string;
+  descricao: string | null;
+  cliente_nome: string | null;
+  pedido_numero: string | null;
+  valor: number;
+  comissao: number;
+  vencimento: string | null;
+  recebido: boolean;
+  recebido_em: string | null;
 }

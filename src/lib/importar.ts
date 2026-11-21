@@ -1,6 +1,9 @@
 /* Leitura da lista colada (JSON ou CSV gerado pelo Claude a partir do PDF do fornecedor) + detecção de duplicados. Funções puras. */
 import { normTxt } from './formato';
 import type { Produto } from './types';
+import { ok, sb } from './supabase';
+
+const normRef = (s?: string | null) => normTxt(s).replace(/[\s.\-_/]/g, '');
 
 export interface LinhaImp {
   n: number;
@@ -86,10 +89,11 @@ export function lerLista(txt: string, opt: { margemTipo: 'pct' | 'fix'; margem: 
   const linhas = brutos.map((b, i): LinhaImp => {
     const custo = opt.valoresSaoCusto ? (b.custo ?? b.preco) : b.custo;
     const preco = opt.valoresSaoCusto ? aplica(custo) : (b.preco ?? aplica(b.custo));
-    const r = normTxt(b.ref).replace(/[\s.\-_/]/g, '');
+    // Duplicado: mesma referência no mesmo fornecedor; sem referência, mesmo nome no mesmo fornecedor.
+    const r = normRef(b.ref);
     const nm = normTxt(b.nome);
-    const duplicado = daCat.find((p) => (r && normTxt(p.ref).replace(/[\s.\-_/]/g, '') === r) || normTxt(p.nome) === nm) ?? null;
-    const k = r || nm;
+    const duplicado = (r ? daCat.find((p) => normRef(p.ref) === r) : daCat.find((p) => normTxt(p.nome) === nm)) ?? null;
+    const k = r ? 'ref:' + r : 'nome:' + nm;
     const dupNoArquivo = vistos.has(k);
     vistos.add(k);
     const opcoes = b.opcoes.map((o) => ({ ...o, preco: opt.valoresSaoCusto ? aplica(o.preco) : o.preco }));
@@ -109,3 +113,40 @@ export const PROMPT_CLAUDE = `Vou te mandar o catálogo PDF de um fornecedor. Ex
 Regras: "custo" é o preço do PDF (número com ponto). "min" é a quantidade mínima/múltiplo (1 se não tiver).
 "variacoes" só quando o mesmo produto tem tamanhos/cores com preço ou código próprio; senão deixe [].
 Nome em português, sem CAIXA ALTA, com a medida no final. Não invente referência: deixe "" se não houver.`;
+
+export type AcaoImp = 'criar' | 'atualizar' | 'pular' | 'erro';
+
+/** Grava a importação: cria os novos e atualiza os duplicados escolhidos. Devolve quantos de cada. */
+export async function gravarImportacao(linhas: LinhaImp[], acao: (l: LinhaImp) => AcaoImp, fornecedorId: string, margem: { tipo: 'pct' | 'fix'; valor: number }) {
+  const base = (l: LinhaImp) => ({
+    nome: l.nome,
+    ref: l.ref || null,
+    categoria: l.linha || null,
+    custo: l.custo,
+    margem_tipo: margem.tipo,
+    margem_val: margem.valor,
+    preco: l.preco ?? (l.opcoes.length ? Math.min(...l.opcoes.map((o) => o.preco ?? Infinity)) : null),
+    min_mult: l.min,
+  });
+  const novos = linhas.filter((l) => acao(l) === 'criar');
+  const atualizar = linhas.filter((l) => acao(l) === 'atualizar' && l.duplicado);
+  let criados = 0;
+  for (let i = 0; i < novos.length; i += 100) {
+    const lote = novos.slice(i, i + 100);
+    const ids = ok(await sb().from('produtos').insert(lote.map((l) => ({ ...base(l), fornecedor_id: fornecedorId }))).select('id')) as { id: string }[];
+    const vars = lote.flatMap((l, k) => l.opcoes.map((o) => ({ produto_id: ids[k].id, nome: o.nome || '—', ref: o.ref || null, preco: o.preco ?? base(l).preco ?? 0 })));
+    if (vars.length) ok(await sb().from('produto_variacoes').insert(vars));
+    criados += lote.length;
+  }
+  for (const l of atualizar) {
+    const d = base(l);
+    const upd: Record<string, unknown> = { custo: d.custo, margem_tipo: d.margem_tipo, margem_val: d.margem_val, preco: d.preco, min_mult: d.min_mult };
+    if (d.categoria) upd.categoria = d.categoria;
+    ok(await sb().from('produtos').update(upd).eq('id', l.duplicado!.id));
+    if (l.opcoes.length) {
+      ok(await sb().from('produto_variacoes').delete().eq('produto_id', l.duplicado!.id));
+      ok(await sb().from('produto_variacoes').insert(l.opcoes.map((o) => ({ produto_id: l.duplicado!.id, nome: o.nome || '—', ref: o.ref || null, preco: o.preco ?? d.preco ?? 0 }))));
+    }
+  }
+  return { criados, atualizados: atualizar.length };
+}

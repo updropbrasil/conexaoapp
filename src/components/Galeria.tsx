@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { miniatura } from '@/lib/formato';
+import { Mini } from './Foto';
 import { FotoVazia } from './CartaoProduto';
 import { Icone } from './Icone';
 
@@ -51,7 +51,7 @@ export function Galeria({ fotos, nome }: { fotos: string[]; nome: string }) {
         <div className="sem-barra mt-2.5 flex gap-2 overflow-x-auto p-0.5">
           {fotos.map((u, k) => (
             <button key={u} onClick={() => ir(k)} className={`size-16 shrink-0 overflow-hidden rounded-xl bg-areia-2 ring-2 transition ${k === i ? 'ring-tinta' : 'ring-transparent opacity-70'}`}>
-              <img src={miniatura(u)!} alt="" loading="lazy" width={300} height={300} className="size-full object-cover" />
+              <Mini url={u} className="size-full object-cover" />
             </button>
           ))}
         </div>

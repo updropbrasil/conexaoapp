@@ -5,14 +5,19 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx serve out -l 3000",
     "typecheck": "tsc --noEmit",
-    "mock:fotos": "node scripts/gerar-fotos-mock.mjs",
-    "prints": "node scripts/prints.mjs"
+    "teste:subir": "bash scripts/teste/subir.sh && node --experimental-strip-types scripts/teste/semear.mjs",
+    "teste:e2e": "node scripts/teste/e2e.mjs",
+    "teste:sem-migracao": "node scripts/teste/sem-migracao.mjs",
+    "teste:fotos": "node scripts/teste/gerar-fotos.mjs",
+    "prints": "node scripts/teste/prints.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+    "@supabase/supabase-js": "^2.119.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "next": "^16.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

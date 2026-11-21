@@ -1,9 +1,9 @@
 /*
  * Dados de exemplo (modo de teste). Nada daqui vai para o banco.
  * Produtos/categorias inspirados no catálogo real; clientes e pedidos são FICTÍCIOS.
- * Fotos: ilustrações geradas por scripts/gerar-fotos-mock.mjs (1200px + miniatura 300px, WebP).
+ * Fotos: ilustrações geradas por scripts/teste/gerar-fotos.mjs (1200px + miniatura 300px, WebP).
  */
-import type { Cliente, Cotacao, Fornecedor, Pedido, PedidoItem, Produto, StatusPedido } from '../types';
+import type { Cliente, Cotacao, Fornecedor, Pedido, PedidoItem, Produto, StatusPedido } from '../../src/lib/types';
 
 export const fornecedores: Fornecedor[] = [
   { id: 'f-cmb', nome: 'Cama, Mesa e Banho', logo: '🛏️', cor: 0, pedido_minimo: 1500 },
@@ -82,7 +82,7 @@ export const produtos: Produto[] = defs.map((d, i) => {
     margem_tipo: 'pct',
     margem_val: 30,
     categoria: d.cat ?? null,
-    criado_em: new Date(Date.UTC(2026, 10, 20 - (d.novo ? 0 : 5 + i))).toISOString(),
+    criado_em: new Date(d.novo ? Date.UTC(2026, 10, 19) : Date.UTC(2026, 8, 1 + i)).toISOString(),
     produto_fotos: Array.from({ length: n }, (_, k) => ({ id: `${d.id}-f${k + 1}`, produto_id: d.id, url: foto(d.id, k + 1), ordem: k })),
     produto_variacoes: (d.vars ?? []).map(([nome, preco], k) => ({ id: `${d.id}-v${k}`, produto_id: d.id, nome, ref: d.ref ? `${d.ref}-${nome}`.toUpperCase() : null, preco })),
     produto_faixas: (d.faixas ?? []).map(([min_valor, preco], k) => ({ id: `${d.id}-x${k}`, produto_id: d.id, min_valor, preco })),

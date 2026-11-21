@@ -10,7 +10,7 @@ import { useLoja } from '@/components/Loja';
 import { Quantidade } from '@/components/Quantidade';
 import { Aviso, TopoSimples } from '@/components/Topo';
 import { corCategoria, dinheiro } from '@/lib/formato';
-import { NOVOS } from '@/lib/mock/dados';
+import { ehNovo } from '@/lib/catalogo';
 import { multiplo } from '@/lib/preco';
 
 export default function PaginaProduto() {
@@ -23,7 +23,7 @@ export default function PaginaProduto() {
 
 function Produto() {
   const id = useSearchParams().get('id');
-  const { produtos, fornecedores, adicionar, itens } = useLoja();
+  const { produtos, fornecedores, adicionar, itens, carregando } = useLoja();
   const p = produtos.find((x) => x.id === id);
   const [vid, setVid] = useState<string | null>(null);
   const [qtd, setQtd] = useState(1);
@@ -38,7 +38,7 @@ function Produto() {
     return (
       <div className="min-h-dvh">
         <TopoSimples titulo="Produto" />
-        <p className="p-8 text-center text-suave">Produto não encontrado.</p>
+        <p className="p-8 text-center text-suave">{carregando ? 'Carregando…' : 'Produto não encontrado.'}</p>
       </div>
     );
 
@@ -68,7 +68,7 @@ function Produto() {
               {f.logo} {f.nome}
             </Link>
             {p.categoria && <span className="pilula bg-white text-suave ring-1 ring-linha">{p.categoria}</span>}
-            {NOVOS.has(p.id) && <span className="pilula bg-tinta text-white">Novo</span>}
+            {ehNovo(p) && <span className="pilula bg-tinta text-white">Novo</span>}
           </div>
           <h1 className="mt-3 text-[24px] font-extrabold leading-tight text-tinta sm:text-[30px]">{p.nome}</h1>
           {(v?.ref || p.ref) && <p className="mt-1.5 text-[13px] text-suave">Ref. {v?.ref || p.ref}</p>}

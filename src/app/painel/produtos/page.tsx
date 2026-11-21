@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { FotoVazia } from '@/components/CartaoProduto';
 import { Icone } from '@/components/Icone';
-import { useLoja } from '@/components/Loja';
+import { useAdmin } from '@/components/Admin';
+import { Mini } from '@/components/Foto';
 import { PainelTopo } from '@/components/PainelTopo';
-import { dinheiro, miniatura, normTxt } from '@/lib/formato';
+import { dinheiro, normTxt } from '@/lib/formato';
 import { multiplo, precoBase, temVariacao } from '@/lib/preco';
 
 export default function GestaoProdutos() {
-  const { produtos, fornecedores } = useLoja();
+  const { produtos, fornecedores } = useAdmin();
   const [cat, setCat] = useState('');
   const [busca, setBusca] = useState('');
   const cont = useMemo(() => {
@@ -51,14 +52,22 @@ export default function GestaoProdutos() {
           ))}
         </div>
 
-        <ul className="cartao mt-4 divide-y divide-linha overflow-hidden">
+        {!produtos.length && (
+          <div className="cartao mt-4 grid place-items-center gap-2 px-6 py-12 text-center">
+            <Icone n="caixa" className="size-8 text-suave/60" />
+            <p className="font-semibold text-tinta">Nenhum produto ainda</p>
+            <p className="max-w-xs text-sm text-suave">{fornecedores.length ? 'Cadastre um por um ou importe o catálogo do fornecedor de uma vez.' : 'Comece criando as categorias (ex.: Moda Praia) em Mais › Categorias.'}</p>
+            <Link href={fornecedores.length ? '/painel/importar/' : '/painel/categorias/'} className="btn-tinta btn-sm mt-2">{fornecedores.length ? 'Importar catálogo' : 'Criar categorias'}</Link>
+          </div>
+        )}
+        <ul className={`cartao mt-4 divide-y divide-linha overflow-hidden ${lista.length ? '' : 'hidden'}`}>
           {lista.map((p) => {
             const f = nomeCat(p.fornecedor_id);
             return (
               <li key={p.id}>
                 <Link href={`/painel/produtos/editar/?id=${p.id}`} className="flex items-center gap-3 px-3 py-3 transition hover:bg-areia/60 sm:px-4">
                   <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-areia-2">
-                    {p.img_url ? <img src={miniatura(p.img_url)!} alt="" loading="lazy" width={300} height={300} className="size-full object-cover" /> : <FotoVazia className="size-full" />}
+                    {p.img_url ? <Mini url={p.img_url} className="size-full object-cover" /> : <FotoVazia className="size-full" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-[14px] font-medium leading-snug">{p.nome}</p>

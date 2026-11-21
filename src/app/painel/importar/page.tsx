@@ -1,16 +1,22 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { Icone } from '@/components/Icone';
-import { useLoja } from '@/components/Loja';
+import { useAdmin } from '@/components/Admin';
+import { acrescentarFoto } from '@/lib/admin';
+import { enviarFoto } from '@/lib/fotos';
 import { PainelTopo } from '@/components/PainelTopo';
 import { dinheiro } from '@/lib/formato';
-import { lerLista, PROMPT_CLAUDE, type LinhaImp } from '@/lib/importar';
+import { gravarImportacao, lerLista, PROMPT_CLAUDE, type LinhaImp } from '@/lib/importar';
+import { normTxt } from '@/lib/formato';
 
 type Acao = 'atualizar' | 'pular';
 
 export default function Importar() {
-  const { produtos, fornecedores } = useLoja();
-  const [cat, setCat] = useState(fornecedores[0].id);
+  const { produtos, fornecedores, recarregar, avisar, falhar } = useAdmin();
+  const [cat0, setCat] = useState('');
+  const cat = cat0 || fornecedores[0]?.id || '';
+  const [gravando, setGravando] = useState(false);
+  const [statusFotos, setStatusFotos] = useState('');
   const [margemTipo, setMargemTipo] = useState<'pct' | 'fix'>('pct');
   const [margem, setMargem] = useState('30');
   const [txt, setTxt] = useState('');
@@ -25,7 +31,59 @@ export default function Importar() {
   const cont = { criar: 0, atualizar: 0, pular: 0, erro: 0 };
   r.linhas.forEach((l) => cont[acao(l)]++);
   const nDup = r.linhas.filter((l) => l.duplicado || l.dupNoArquivo).length;
-  const f = fornecedores.find((x) => x.id === cat)!;
+  const f = fornecedores.find((x) => x.id === cat) ?? { nome: '' };
+  const margemNum = parseFloat(margem.replace(',', '.')) || 0;
+
+  const importar = async () => {
+    if (!confirm(`Importar ${cont.criar} novos e atualizar ${cont.atualizar} em ${f.nome}?`)) return;
+    setGravando(true);
+    try {
+      const r2 = await gravarImportacao(r.linhas, acao, cat, { tipo: margemTipo, valor: margemNum });
+      await recarregar();
+      setTxt('');
+      setAcoes({});
+      avisar(`${r2.criados} criados · ${r2.atualizados} atualizados`);
+    } catch (e) {
+      falhar(e);
+    } finally {
+      setGravando(false);
+    }
+  };
+
+  // Fotos em lote: o nome do arquivo é a referência (ou o nome) do produto. Ex.: COB-CAS.jpg
+  const importarFotos = async (files: File[]) => {
+    const porRef = new Map(produtos.filter((p) => p.ref).map((p) => [normTxt(p.ref), p]));
+    const porNome = new Map(produtos.map((p) => [normTxt(p.nome), p]));
+    let ok = 0;
+    let antes = 0;
+    let depois = 0;
+    const faltou: string[] = [];
+    const contagem = new Map<string, number>();
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setStatusFotos(`Enviando ${i + 1} de ${files.length}…`);
+      const base = normTxt(file.name.replace(/\.[^.]+$/, '').replace(/[_ ]\d+$/, ''));
+      const p = porRef.get(base) ?? porNome.get(base);
+      if (!p) {
+        faltou.push(file.name);
+        continue;
+      }
+      try {
+        const e = await enviarFoto(p.id, file);
+        const ja = contagem.get(p.id) ?? 0;
+        await acrescentarFoto(p.id, e.url, p.produto_fotos.length + ja);
+        contagem.set(p.id, ja + 1);
+        antes += e.bytesOriginal;
+        depois += e.bytesGrande + e.bytesMini;
+        ok++;
+      } catch {
+        faltou.push(file.name + ' (erro)');
+      }
+    }
+    await recarregar();
+    const mb = (b: number) => (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+    setStatusFotos(`✓ ${ok} foto(s) vinculada(s) · ${mb(antes)} → ${mb(depois)}` + (faltou.length ? ` · sem produto: ${faltou.slice(0, 6).join(', ')}${faltou.length > 6 ? '…' : ''}` : ''));
+  };
 
   return (
     <>
@@ -193,6 +251,13 @@ export default function Importar() {
             </div>
           </Passo>
         )}
+        <Passo n={r.linhas.length ? 4 : 3} titulo="Fotos em lote (opcional)" dica="Selecione várias fotos de uma vez. O nome de cada arquivo deve ser a referência do produto (ex.: COB-CAS.jpg ou COB-CAS_2.jpg) — também casa pelo nome do produto.">
+          <label className="btn-claro w-full cursor-pointer">
+            <Icone n="foto" /> Escolher fotos
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) importarFotos(fs); }} />
+          </label>
+          {statusFotos && <p className="num rounded-xl bg-areia px-3 py-2 text-[13px] text-texto">{statusFotos}</p>}
+        </Passo>
       </div>
 
       {r.linhas.length > 0 && (
@@ -202,8 +267,8 @@ export default function Importar() {
               <b className="text-texto">{cont.criar}</b> novos · <b className="text-texto">{cont.atualizar}</b> atualizar · {cont.pular} pular
               {cont.erro ? ` · ${cont.erro} com erro (ficam de fora)` : ''}
             </p>
-            <button className="btn-tinta shrink-0" disabled={!cont.criar && !cont.atualizar}>
-              <Icone n="check" forte /> <span className="num">Importar {cont.criar + cont.atualizar}</span>
+            <button onClick={importar} className="btn-tinta shrink-0" disabled={gravando || (!cont.criar && !cont.atualizar)}>
+              <Icone n="check" forte /> <span className="num">{gravando ? 'Importando…' : `Importar ${cont.criar + cont.atualizar}`}</span>
             </button>
           </div>
         </div>
