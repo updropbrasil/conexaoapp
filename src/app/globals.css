@@ -7,11 +7,11 @@
  * areia = fundo quente, deixa as fotos dos produtos "saltarem"
  */
 @theme {
-  --color-tinta: #0f2a47;
-  --color-tinta-2: #163a61;
-  --color-marca: #1b4f8a;
-  --color-marca-claro: #e8f0f9;
-  --color-folha: #3f8f2a;
+  --color-tinta: #0c1f4f;
+  --color-tinta-2: #15306e;
+  --color-marca: #1c45ad;
+  --color-marca-claro: #e8eefb;
+  --color-folha: #23891c;
   --color-folha-claro: #eaf5e4;
   --color-areia: #f6f4ef;
   --color-areia-2: #efece5;
@@ -27,8 +27,8 @@
   --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
   --radius-card: 1.25rem;
-  --shadow-card: 0 1px 2px rgb(15 42 71 / 0.04), 0 4px 16px -6px rgb(15 42 71 / 0.1);
-  --shadow-flutua: 0 10px 30px -10px rgb(15 42 71 / 0.35);
+  --shadow-card: 0 1px 2px rgb(12 31 79 / 0.04), 0 4px 16px -6px rgb(12 31 79 / 0.1);
+  --shadow-flutua: 0 10px 30px -10px rgb(12 31 79 / 0.35);
 }
 
 html,

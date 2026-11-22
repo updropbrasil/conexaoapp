@@ -18,7 +18,7 @@ const erros = [];
 p.on('pageerror', (e) => erros.push(e.message));
 try {
   await p.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
-  await p.getByText('30 produtos').waitFor({ timeout: 10000 });
+  await p.getByText(/^\d+ itens$/).first().waitFor({ timeout: 10000 });
   checa(true, 'catálogo abre com o visual padrão');
   await p.evaluate(() => localStorage.setItem('conexao.cotacao.v2', JSON.stringify([{ chave: document.querySelector('main a[href*="/produto/"]').href.split('id=')[1], qtd: 30 }])));
   await p.goto('http://127.0.0.1:4173/cotacao/', { waitUntil: 'networkidle' });

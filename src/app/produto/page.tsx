@@ -141,9 +141,12 @@ function Produto() {
           <div className="pb-seguro fixed inset-x-0 bottom-0 z-30 border-t border-linha bg-white/95 px-4 pt-3 backdrop-blur-md lg:static lg:mt-6 lg:rounded-2xl lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
             <div className="mx-auto flex max-w-xl items-center gap-3 lg:max-w-none">
               <Quantidade valor={qtd} passo={m} onChange={setQtd} grande />
-              <button onClick={() => adicionar(chave, qtd)} className="btn-tinta h-12 flex-1 px-4">
-                <Icone n="sacola" className="size-5" />
-                <span className="num">Adicionar · {dinheiro(preco * qtd)}</span>
+              <button onClick={() => adicionar(chave, qtd)} className="btn-tinta h-12 min-w-0 flex-1 px-4">
+                <Icone n="sacola" className="size-5 shrink-0" />
+                <span className="flex min-w-0 flex-col items-start leading-tight sm:flex-row sm:gap-1">
+                  <span>Adicionar</span>
+                  <span className="num truncate text-[12.5px] font-medium text-white/80 sm:text-[inherit] sm:font-semibold sm:text-white"><span className="hidden sm:inline">· </span>{dinheiro(preco * qtd)}</span>
+                </span>
               </button>
             </div>
             {naCotacao > 0 && (

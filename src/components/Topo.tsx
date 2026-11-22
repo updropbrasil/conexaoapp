@@ -1,18 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { Emblema, Icone } from './Icone';
+import { Icone } from './Icone';
 import { useLoja } from './Loja';
 
+/** Logo do topo: emblema + "CONEXÃO / INDÚSTRIA & VAREJO" (versão clara para o fundo azul-marinho). */
 export function Marca({ claro = false }: { claro?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
-      <span className="grid size-10 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-        <Emblema className="size-8" />
-      </span>
-      <span className="leading-none">
-        <b className={`font-display block text-[17px] font-extrabold tracking-tight ${claro ? 'text-white' : 'text-tinta'}`}>CONEXÃO</b>
-        <span className={`text-[11px] font-medium ${claro ? 'text-white/70' : 'text-suave'}`}>Indústria &amp; Varejo</span>
-      </span>
+    <Link href="/" className="flex shrink-0 items-center" aria-label="Conexão Indústria & Varejo — início">
+      <img src={claro ? '/marca/logo-topo-claro.webp' : '/marca/logo-topo.webp'} alt="Conexão Indústria & Varejo" width={214} height={44} className="h-11 w-auto" />
     </Link>
   );
 }

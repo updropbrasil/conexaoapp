@@ -95,7 +95,7 @@ export default function Catalogo() {
       {/* CATEGORIAS */}
       <section className="sticky top-0 z-20 border-b border-linha/70 bg-areia/95 backdrop-blur-md">
         <div className="sem-barra mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 py-3">
-          <BotaoCat ativo={!cat} onClick={() => { setCat(''); setSub(''); }} emoji="✨" nome="Tudo" n={produtos.length} cor={{ fundo: '#fff', texto: '#0f2a47' }} />
+          <BotaoCat ativo={!cat} onClick={() => { setCat(''); setSub(''); }} emoji="✨" nome="Tudo" n={produtos.length} cor={{ fundo: '#fff', texto: '#0c1f4f' }} />
           {categorias.map((f) => (
             <BotaoCat key={f.id} ativo={cat === f.id} onClick={() => { setCat(f.id); setSub(''); }} emoji={f.logo ?? '🏭'} nome={f.nome} n={contagem[f.id]} cor={corCategoria(f.cor)} />
           ))}
@@ -178,9 +178,12 @@ export default function Catalogo() {
           </div>
           <Link href="/cadastro/" className="btn-tinta mt-4 w-full sm:mt-0 sm:w-auto">Cadastrar minha loja</Link>
         </section>
-        <footer className="flex items-center justify-between py-8 text-[12px] text-suave">
-          <span>© Conexão Indústria &amp; Varejo</span>
-          <Link href="/painel/pedidos/" className="font-semibold text-suave/80 hover:text-tinta">Área do representante</Link>
+        <footer className="mt-8 border-t border-linha pb-8 pt-6 text-[12px] text-suave">
+          <img src="/marca/logo-completa.webp" alt="Conexão Indústria & Varejo — Direto da fábrica para a sua loja. Enviamos para todo o Brasil!" width={300} height={100} loading="lazy" className="mx-auto h-auto w-full max-w-[280px] sm:mx-0" />
+          <div className="mt-5 flex items-center justify-between">
+            <span>© Conexão Indústria &amp; Varejo</span>
+            <Link href="/painel/pedidos/" className="font-semibold text-suave/80 hover:text-tinta">Área do representante</Link>
+          </div>
         </footer>
       </main>
       <BarraCotacao />
