@@ -61,7 +61,7 @@ try {
   await p.getByRole('button', { name: 'Ampliar foto' }).first().click();
   await p.getByRole('button', { name: 'Fechar' }).click();
   for (let k = 0; k < 4; k++) await p.getByRole('button', { name: 'Aumentar' }).click(); // 40 → 200
-  await p.getByRole('button', { name: /Adicionar · R\$ 3\.200,00/ }).click();
+  await p.getByRole('button', { name: /Adicionar.*R\$ 3\.200,00/ }).click();
   checa(true, 'adicionou 200 un. (R$ 3.200,00)');
   await ir('/produto/?id=' + sql("select id from produtos where ref='SHT-FIT-DUP'"));
   await p.getByRole('button', { name: /^G\b/ }).first().click();

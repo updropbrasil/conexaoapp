@@ -7,6 +7,7 @@ import { BuscaProduto } from '@/components/BuscaProduto';
 import { Folha } from '@/components/Folha';
 import { Icone } from '@/components/Icone';
 import { PainelTopo } from '@/components/PainelTopo';
+import { CampoQtd } from '@/components/Quantidade';
 import { comissaoPedido, criarPedidos, listarClientes, listarPedidos, unidadesPedido, valorPedido, type ItemNovo } from '@/lib/admin';
 import { dataCurta, dinheiro, mesAno, normTxt } from '@/lib/formato';
 import { STATUS } from '@/lib/status';
@@ -184,7 +185,7 @@ function NovoPedido({ aberto, onFechar, onCriado }: { aberto: boolean; onFechar:
         {itens.map((i, k) => (
           <li key={k} className="flex items-center gap-2 px-3 py-2.5 text-[13.5px]">
             <span className="min-w-0 flex-1"><span className="block truncate font-medium">{i.produto_nome}</span><span className="text-[11.5px] text-suave">{i.fornecedor}</span></span>
-            <input className="campo num w-16 px-2 py-1.5 text-center" inputMode="numeric" value={i.qtd} onChange={(e) => setItens(itens.map((x, j) => (j === k ? { ...x, qtd: Math.max(1, parseInt(e.target.value) || 1) } : x)))} />
+            <CampoQtd className="campo num w-16 px-2 py-1.5 text-center" rotulo={`Quantidade de ${i.produto_nome}`} valor={i.qtd} onChange={(n) => setItens((a) => a.map((x, j) => (j === k ? { ...x, qtd: n } : x)))} />
             <b className="num w-20 text-right">{dinheiro(i.qtd * i.preco)}</b>
             <button onClick={() => setItens(itens.filter((_, j) => j !== k))} className="text-perigo" aria-label="Remover"><Icone n="lixo" className="size-4" /></button>
           </li>
