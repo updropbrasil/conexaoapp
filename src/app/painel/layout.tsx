@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminProvider, useAdmin } from '@/components/Admin';
-import { Emblema, Icone } from '@/components/Icone';
+import { Icone } from '@/components/Icone';
 import { Aviso } from '@/components/Topo';
 import { sb } from '@/lib/supabase';
 
@@ -36,12 +36,9 @@ function Casca({ children }: { children: React.ReactNode }) {
       <Aviso />
       {/* lateral (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-tinta px-4 py-5 text-white lg:flex">
-        <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
-          <span className="grid size-10 place-items-center rounded-2xl bg-white"><Emblema className="size-8" /></span>
-          <span className="leading-none">
-            <b className="font-display block text-[16px] font-extrabold">CONEXÃO</b>
-            <span className="text-[11px] text-white/60">Painel do representante</span>
-          </span>
+        <Link href="/" className="mb-8 block px-2" aria-label="Conexão Indústria & Varejo — ver catálogo">
+          <img src="/marca/logo-topo-claro.webp" alt="Conexão Indústria & Varejo" width={214} height={44} className="h-10 w-auto" />
+          <span className="mt-2 block text-[11.5px] text-white/60">Painel do representante</span>
         </Link>
         <nav className="space-y-1">
           {[...NAV, ...EXTRA].map((i) => (

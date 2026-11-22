@@ -3,7 +3,7 @@ import { faltaNoBanco, sb } from './supabase';
 
 export interface Tema { id: string; nome: string; tinta: string; tinta2: string; marca: string; marcaClaro: string }
 export const TEMAS: Tema[] = [
-  { id: 'conexao', nome: 'Conexão', tinta: '#0f2a47', tinta2: '#163a61', marca: '#1b4f8a', marcaClaro: '#e8f0f9' },
+  { id: 'conexao', nome: 'Conexão', tinta: '#0c1f4f', tinta2: '#15306e', marca: '#1c45ad', marcaClaro: '#e8eefb' },
   { id: 'azul', nome: 'Azul vivo', tinta: '#14559b', tinta2: '#1d6fc4', marca: '#1d6fc4', marcaClaro: '#e6f0fb' },
   { id: 'verde', nome: 'Verde', tinta: '#24561a', tinta2: '#2f6f22', marca: '#37711f', marcaClaro: '#eaf5e4' },
   { id: 'grafite', nome: 'Grafite', tinta: '#1f2937', tinta2: '#374151', marca: '#374151', marcaClaro: '#eef0f3' },

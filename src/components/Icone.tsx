@@ -51,19 +51,7 @@ export function IconeWhats({ className = 'size-5' }: { className?: string }) {
   );
 }
 
-/* Emblema da Conexão (mesmo desenho do app atual). */
+/* Emblema da Conexão (círculo fábrica → loja, da logo oficial). */
 export function Emblema({ className = 'size-9' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden>
-      <path d="M16 52 A34 34 0 0 1 84 52" fill="none" stroke="#2e86c9" strokeWidth="9" strokeLinecap="round" />
-      <path d="M84 48 A34 34 0 0 1 16 48" fill="none" stroke="#57a23a" strokeWidth="9" strokeLinecap="round" />
-      <g fill="#6e7174">
-        <rect x="25" y="46" width="9" height="15" />
-        <polygon points="34,46 34,61 46,61 46,40 40,44 40,40 34,44" />
-        <rect x="22" y="58" width="26" height="4" />
-      </g>
-      <rect x="55" y="48" width="20" height="14" fill="#1b4f8a" />
-      <path d="M53 48 L77 48 L74 41 L56 41 Z" fill="#12365f" />
-    </svg>
-  );
+  return <img src="/marca/emblema.webp" alt="" aria-hidden width={48} height={44} className={`${className} object-contain`} />;
 }

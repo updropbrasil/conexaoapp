@@ -1,5 +1,5 @@
 // Service worker — Conexão Vendas v2 (PWA instalável + cache de fotos). Sem notificações push.
-const VERSAO = 'v2-2';
+const VERSAO = 'v2-3';
 const SHELL = `conexao-shell-${VERSAO}`;
 const FOTOS = 'conexao-fotos-v1'; // não muda de nome a cada versão: fotos ficam no aparelho
 const MAX_FOTOS = 600;
